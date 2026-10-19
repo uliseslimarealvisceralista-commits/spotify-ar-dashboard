@@ -1,0 +1,994 @@
+<meta charset="utf-8">
+<title>Market share por género — Spotify AR</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --gridline: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --good: #006300;
+    --critical: #d03b3b;
+    --s-local: #2a78d6;
+    --s-latino: #1baf7a;
+    --s-anglo: #eda100;
+    --s-kpop: #eb6834;
+    --fc-front: #008300;
+    --fc-cat: #a9a597;
+    --g-sony: #4a3aa7;
+    --g-universal: #0b7f8c;
+    --g-warner: #d55181;
+    --g-indep: #a9a597;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --gridline: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --good: #0ca30c;
+      --critical: #e66767;
+      --s-local: #3987e5;
+      --s-latino: #199e70;
+      --s-anglo: #c98500;
+      --s-kpop: #d95926;
+      --fc-front: #0ca30c;
+      --fc-cat: #6b6a5f;
+      --g-sony: #9085e9;
+      --g-universal: #2fb3c2;
+      --g-warner: #e87ba4;
+      --g-indep: #6b6a5f;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --gridline: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255,255,255,0.10);
+    --good: #0ca30c;
+    --critical: #e66767;
+    --s-local: #3987e5;
+    --s-latino: #199e70;
+    --s-anglo: #c98500;
+    --s-kpop: #d95926;
+    --fc-front: #0ca30c;
+    --fc-cat: #6b6a5f;
+    --g-sony: #9085e9;
+    --g-universal: #2fb3c2;
+    --g-warner: #e87ba4;
+    --g-indep: #6b6a5f;
+  }
+
+  * { box-sizing: border-box; }
+  table, td, th { color: inherit; }  /* sin doctype las celdas no heredaban el color del tema */
+  .viz-root {
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100%;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 72px; }
+
+  header { margin-bottom: 28px; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin: 0 0 8px; }
+  h1 { font-size: clamp(22px, 3vw, 28px); font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .sub { color: var(--text-secondary); font-size: 14px; line-height: 1.55; max-width: 70ch; margin: 0; }
+  .caveat {
+    margin-top: 14px; font-size: 12.5px; color: var(--text-muted); line-height: 1.55;
+    padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; max-width: 74ch;
+  }
+
+  h2.section-title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+  .section-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 16px; }
+  section { margin-bottom: 36px; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .kpi {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .kpi .label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-secondary); font-weight: 600; }
+  .kpi .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .kpi .value { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+  .kpi .delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; width: fit-content; }
+  .kpi .delta.up { color: var(--good); }
+  .kpi .delta.down { color: var(--critical); }
+  .kpi .delta .vs { color: var(--text-muted); font-weight: 400; margin-left: 2px; }
+  .kpi .meta { font-size: 11.5px; color: var(--text-muted); }
+
+  .chart-card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 20px 20px 12px;
+  }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; font-size: 12.5px; color: var(--text-secondary); }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 10px; height: 10px; border-radius: 2px; }
+
+  svg.chart { width: 100%; height: auto; overflow: visible; font-family: inherit; }
+  .gridline { stroke: var(--gridline); stroke-width: 1; }
+  .axis-text { fill: var(--text-muted); font-size: 11px; }
+  .series-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .end-dot { stroke: var(--surface-1); stroke-width: 2; }
+  .end-label { font-size: 12px; font-weight: 700; }
+  .crosshair-line { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0; pointer-events: none; }
+  .hover-dot { opacity: 0; pointer-events: none; }
+  .hover-dot circle { stroke: var(--surface-1); stroke-width: 2; }
+
+  .tooltip {
+    position: absolute; background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); pointer-events: none;
+    opacity: 0; transition: opacity 0.1s ease; z-index: 10; min-width: 150px;
+  }
+  .tooltip .t-date { font-weight: 700; margin-bottom: 6px; color: var(--text-primary); }
+  .tooltip .t-row { display: flex; align-items: center; gap: 6px; justify-content: space-between; padding: 2px 0; color: var(--text-secondary); }
+  .tooltip .t-row .t-name { display: flex; align-items: center; gap: 6px; }
+  .tooltip .t-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .tooltip .t-val { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text-primary); }
+
+  .hit-area { fill: transparent; cursor: crosshair; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em;
+    color: var(--text-muted); font-weight: 600; padding: 0 10px 10px; border-bottom: 1px solid var(--gridline);
+  }
+  thead th:first-child, thead th:nth-child(2) { text-align: left; }
+  tbody td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--gridline); font-variant-numeric: tabular-nums; }
+  tbody td:first-child, tbody td:nth-child(2) { text-align: left; font-variant-numeric: normal; }
+  tbody tr:last-child td { border-bottom: none; }
+  .madre-cell { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .madre-cell .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .genero-name { color: var(--text-secondary); }
+  .delta-chip { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; }
+  .delta-chip.up { color: var(--good); }
+  .delta-chip.down { color: var(--critical); }
+  .delta-chip.flat { color: var(--text-muted); }
+  .table-wrap { overflow-x: auto; background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 4px 16px; }
+  #selloTable thead th:nth-child(2), #selloTable tbody td:nth-child(2) { text-align: right; font-variant-numeric: tabular-nums; }
+  #selloTable .sello-name { max-width: 420px; overflow-wrap: break-word; }
+  #selloTable .sello-rest { color: var(--text-muted); font-style: italic; }
+  #distribuidoraTable thead th:nth-child(2), #distribuidoraTable tbody td:nth-child(2) { text-align: right; font-variant-numeric: tabular-nums; }
+  #distribuidoraTable .sello-name { max-width: 420px; overflow-wrap: break-word; }
+  #distribuidoraTable .sello-rest { color: var(--text-muted); font-style: italic; }
+
+  footer { margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--gridline); color: var(--text-muted); font-size: 12px; line-height: 1.6; }
+
+  /* ---------- Donuts ---------- */
+  .donut-block { display: flex; align-items: center; gap: 20px; }
+  .donut-block svg { flex: none; }
+  .donut-center-value { font-size: 20px; font-weight: 700; fill: var(--text-primary); }
+  .donut-center-sub { font-size: 8.5px; fill: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .donut-legend { display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; min-width: 0; }
+  .donut-legend-item { display: flex; align-items: baseline; gap: 7px; }
+  .donut-legend-item .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-top: 2px; }
+  .donut-legend-item .name { color: var(--text-secondary); font-weight: 600; }
+  .donut-legend-item .pct { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-primary); margin-left: auto; padding-left: 12px; }
+  .donut-legend-item .meta { display: block; font-size: 11px; color: var(--text-muted); font-weight: 400; }
+
+  .hero-row { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 12px; align-items: stretch; }
+  @media (max-width: 780px) { .hero-row { grid-template-columns: 1fr; } }
+
+  .madre-mini-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+  @media (max-width: 720px) { .madre-mini-grid { grid-template-columns: repeat(2, 1fr); } }
+  .mini-donut-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+  .mini-donut-card .mini-title { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+  .mini-donut-card .mini-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .mini-donut-legend { display: flex; gap: 10px; font-size: 11px; color: var(--text-muted); }
+  .mini-donut-legend .swatch { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+  .methodology { font-size: 12px; color: var(--text-muted); line-height: 1.55; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--gridline); }
+
+  .genero-strip { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .genero-strip .mini-donut-card { flex: 1 1 200px; }
+
+  /* ---------- Local top-10 por género ---------- */
+  .top10-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; }
+  .top10-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .top10-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+  .top10-head-text { flex: 1; min-width: 0; }
+  .top10-head h3 { margin: 0 0 2px; font-size: 15px; font-weight: 700; }
+  .top10-head .meta { font-size: 11.5px; color: var(--text-muted); }
+  .top10-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .top10-table td { padding: 5px 4px; border-bottom: 1px solid var(--gridline); }
+  .top10-table tr:last-child td { border-bottom: none; }
+  .top10-table .rank { color: var(--text-muted); font-variant-numeric: tabular-nums; width: 20px; }
+  .top10-table .title-cell { min-width: 0; }
+  .top10-table .title-cell .t { font-weight: 600; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+  .top10-table .title-cell .a { color: var(--text-muted); font-size: 11.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+  .top10-table .streams { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); white-space: nowrap; }
+  .top10-table .chart-pos { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); white-space: nowrap; padding-right: 10px; }
+  .top10-table thead th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); font-weight: 600; padding: 0 4px 6px; text-align: right; border-bottom: 1px solid var(--gridline); }
+  .top10-table thead th:first-child, .top10-table thead th:nth-child(2) { text-align: left; }
+
+
+  /* ---------- Grupos discograficos ---------- */
+  .gbar { display: flex; height: 38px; border-radius: 8px; overflow: hidden; gap: 2px; }
+  .gbar-seg { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; min-width: 0; white-space: nowrap; overflow: hidden; }
+  .gbar-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 12.5px; color: var(--text-secondary); }
+  .grupo-list { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+  details.grupo { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; }
+  details.grupo > summary { list-style: none; cursor: pointer; padding: 14px 16px; display: grid; grid-template-columns: 14px 12px 1fr auto; align-items: center; gap: 10px; }
+  details.grupo > summary::-webkit-details-marker { display: none; }
+  details.grupo .chev { width: 8px; height: 8px; border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted); transform: rotate(-45deg); transition: transform 0.15s ease; justify-self: center; }
+  details.grupo[open] .chev { transform: rotate(45deg); }
+  details.grupo .g-dot { width: 12px; height: 12px; border-radius: 3px; }
+  details.grupo .g-name { font-weight: 700; font-size: 15px; }
+  details.grupo .g-meta { display: block; font-size: 11.5px; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+  details.grupo .g-pct { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .vias-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .vias-table thead th { text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); font-weight: 600; padding: 0 12px 8px; border-bottom: 1px solid var(--gridline); }
+  .vias-table thead th:first-child { text-align: left; padding-left: 52px; }
+  .vias-table tbody td { padding: 8px 12px; text-align: right; border-top: 1px solid var(--gridline); font-variant-numeric: tabular-nums; }
+  .vias-table tbody td:first-child { text-align: left; padding-left: 52px; font-variant-numeric: normal; }
+  .vias-table .via-bar { display: block; height: 4px; border-radius: 2px; margin-top: 5px; }
+  .vias-table .via-rest td:first-child { color: var(--text-muted); font-style: italic; }
+  .vias-wrap { padding: 0 4px 12px; overflow-x: auto; }
+  @media (max-width: 640px) { .vias-table th:nth-child(3), .vias-table td:nth-child(3), .vias-table th:nth-child(5), .vias-table td:nth-child(5) { display: none; } .vias-table thead th:first-child, .vias-table tbody td:first-child { padding-left: 16px; } }
+  .mode-bar { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-1); margin: 4px 0 20px; position: sticky; top: 8px; z-index: 5; }
+  .mode-btn { font: inherit; font-size: 13px; font-weight: 600; color: var(--text-secondary); background: transparent; border: 0; border-radius: 7px; padding: 7px 14px; cursor: pointer; }
+  .mode-btn.active { background: var(--text-primary); color: var(--page); }
+  .mode-btn:focus-visible { outline: 2px solid var(--s-local); outline-offset: 2px; }
+  .mode-tag { display: inline-block; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-left: 8px; }
+  @media (max-width: 720px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+
+<div class="viz-root">
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">Music Data Analyst · Spotify Top 200 Argentina</p>
+      <h1>Market share por categoría y género musical</h1>
+      <p class="sub">Semana del 2026-10-08 y acumulado 2026 (40 semanas, 2026-01-08 a 2026-10-08). Top 200 semanal completo de Spotify Argentina (posiciones y streams de kworb.net, que replican Spotify Charts).</p>
+      <p class="caveat" id="caveat"></p>
+      <div class="mode-bar" id="modeBar" role="group" aria-label="Período"><button class="mode-btn active" data-mode="sem" id="modeSem">Última semana</button><button class="mode-btn" data-mode="ytd" id="modeYtd">Acumulado 2026</button></div>
+    </header>
+
+    <section id="kpiSection">
+      <h2 class="section-title" id="kpiTitle">Esta semana</h2>
+      <p class="section-sub" id="kpiSub">Market share y variación vs. semana anterior (2026-10-01)</p>
+      <div class="hero-row">
+        <div class="chart-card">
+          <div class="donut-block">
+            <svg id="madreDonut" width="160" height="160"></svg>
+            <div class="donut-legend" id="madreDonutLegend"></div>
+          </div>
+        </div>
+        <div class="kpi-row" id="kpiRow" style="grid-template-columns: repeat(2, 1fr);"></div>
+      </div>
+    </section>
+
+    <section id="chartSection">
+      <h2 class="section-title" id="chartTitle">Evolución semanal 2026</h2>
+      <p class="section-sub">Porcentaje de mercado por categoría madre, semana a semana desde la semana 1 de 2026 (08/01)</p>
+      <div class="chart-card">
+        <div class="legend" id="legend"></div>
+        <div style="position: relative;">
+          <svg class="chart" id="lineChart" viewBox="0 0 1000 340" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="tooltip" id="tooltip"></div>
+        </div>
+      </div>
+      <p class="methodology">Semana del 11/06: Local sube a ~67% por el catálogo de Patricio Rey y sus Redonditos de Ricota / Indio Solari (49 tracks que no estaban la semana anterior, ~31 M de streams, mayormente de 1986-1996). Como ese sello (Patricio Rey Discos) se mapea como Independiente, esa semana también se ve el salto de Independientes en la evolución por grupo.</p>
+    </section>
+
+    <section id="fcSection">
+      <h2 class="section-title">Frontline vs. Catálogo</h2>
+      <p class="section-sub">¿Se está consumiendo música nueva o vieja? Frontline = lanzado hace ≤ 18 meses. Catálogo = más de 18 meses.</p>
+      <div class="hero-row">
+        <div class="chart-card">
+          <div class="donut-block">
+            <svg id="fcDonut" width="160" height="160"></svg>
+            <div class="donut-legend" id="fcDonutLegend"></div>
+          </div>
+          <p class="methodology" id="fcTrendNote"></p>
+        </div>
+        <div class="chart-card">
+          <div class="legend" id="fcLegend"></div>
+          <div style="position: relative;">
+            <svg class="chart" id="fcLineChart" viewBox="0 0 560 260" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+        </div>
+      </div>
+      <div class="madre-mini-grid" id="fcMadreGrid"></div>
+      <p class="methodology">Metodología: fecha de lanzamiento = <code>album.release_date</code> de la Spotify Web API para cada track (fechas con precisión de solo año o mes se normalizan al 1/1 o al día 1 del mes, lo cual puede correr levemente hacia "más nuevo" de lo real). Frontline/Catálogo se recalcula por semana usando la fecha de esa semana como referencia — no es un corte fijo.</p>
+    </section>
+
+    <section id="tableSection">
+      <h2 class="section-title">Detalle por género</h2>
+      <p class="section-sub" id="tableSub">Semana actual, agrupado por categoría madre — el círculo muestra la composición de géneros dentro de cada categoría</p>
+      <div class="genero-strip" id="generoStrip"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Categoría</th>
+              <th>Género</th>
+              <th>MS %</th>
+              <th id="thWow">WoW (pp)</th>
+              <th>Tracks</th>
+              <th id="thStreams">Streams TW</th>
+              <th id="thWowS">WoW streams</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <h3 style="font-size:14px; font-weight:700; margin:24px 0 4px;">Local — evolución de cada género</h3>
+      <p class="section-sub">Peso de cada género dentro de la música local: % de los streams Local de cada semana, desde la semana 1 de 2026 (08/01). Pasá el mouse por un punto para ver el valor.</p>
+      <div class="chart-card">
+        <div class="legend" id="localEvoLegend"></div>
+        <div style="position: relative;"><svg class="chart" id="localEvoChart" viewBox="0 0 1000 340" preserveAspectRatio="xMidYMid meet"></svg></div>
+      </div>
+    </section>
+
+    <section id="localTop10Section">
+      <h2 class="section-title">Local — Top 10 por género</h2>
+      <p class="section-sub" id="top10Sub">Los tracks argentinos con más streams esta semana, género por género. El círculo muestra qué proporción del total Local representa ese género.</p>
+      <div class="top10-grid" id="top10Grid"></div>
+    </section>
+
+    <section id="grupoSection">
+      <h2 class="section-title">Market share por grupo discográfico</h2>
+      <p class="section-sub" id="grupoSub">Quién distribuye lo que se escucha en el Top 200 de la semana. Tocá cada grupo para ver por qué vía distribuye.</p>
+      <div class="chart-card">
+        <div class="donut-block">
+          <svg id="grupoDonut" width="200" height="200"></svg>
+          <div class="donut-legend" id="grupoDonutLegend"></div>
+        </div>
+      </div>
+      <div class="grupo-list" id="grupoList"></div>
+      <h3 style="font-size:14px; font-weight:700; margin:22px 0 4px;">Evolución semanal por grupo discográfico</h3>
+      <p class="section-sub">Porcentaje del Top 200 por grupo, semana a semana desde la semana 1 de 2026 (08/01)</p>
+      <div class="chart-card">
+        <div class="legend" id="grupoLegend"></div>
+        <div style="position: relative;"><svg class="chart" id="grupoLineChart" viewBox="0 0 1000 300" preserveAspectRatio="xMidYMid meet"></svg></div>
+      </div>
+      <p class="methodology" id="grupoNote"></p>
+    </section>
+
+    <footer>
+      Fuente: kworb.net (Spotify Weekly Chart Argentina) + Spotify Web API (fecha de lanzamiento para Frontline/Catálogo). Categoría madre y género asignados manualmente para los artistas fuera de la taxonomía original de 757 artistas argentinos — ver <code>propuesta_generos_revision.csv</code> para el detalle de esas asignaciones.
+    </footer>
+  </div>
+</div>
+
+<script>
+  const DATA = {"fechas": ["2026-01-08", "2026-01-15", "2026-01-22", "2026-01-29", "2026-02-05", "2026-02-12", "2026-02-19", "2026-02-26", "2026-03-05", "2026-03-12", "2026-03-19", "2026-03-26", "2026-04-02", "2026-04-09", "2026-04-16", "2026-04-23", "2026-04-30", "2026-05-07", "2026-05-14", "2026-05-21", "2026-05-28", "2026-06-04", "2026-06-11", "2026-06-18", "2026-06-25", "2026-07-02", "2026-07-09", "2026-07-16", "2026-07-23", "2026-07-30", "2026-08-06", "2026-08-13", "2026-08-20", "2026-08-27", "2026-09-03", "2026-09-10", "2026-09-17", "2026-09-24", "2026-10-01", "2026-10-08"], "madre_series": [{"categoria_madre": "Anglo", "points": [{"fecha": "2026-01-08", "pct": 2.24, "streams": 2602524, "tracks": 4, "wow_pp": null}, {"fecha": "2026-01-15", "pct": 2.32, "streams": 2806099, "tracks": 4, "wow_pp": 0.09}, {"fecha": "2026-01-22", "pct": 2.07, "streams": 2495324, "tracks": 4, "wow_pp": -0.26}, {"fecha": "2026-01-29", "pct": 2.72, "streams": 3287126, "tracks": 6, "wow_pp": 0.65}, {"fecha": "2026-02-05", "pct": 2.52, "streams": 2997722, "tracks": 6, "wow_pp": -0.2}, {"fecha": "2026-02-12", "pct": 2.9, "streams": 3502267, "tracks": 7, "wow_pp": 0.39}, {"fecha": "2026-02-19", "pct": 1.62, "streams": 1973223, "tracks": 4, "wow_pp": -1.29}, {"fecha": "2026-02-26", "pct": 2.07, "streams": 2302782, "tracks": 5, "wow_pp": 0.46}, {"fecha": "2026-03-05", "pct": 2.67, "streams": 2897146, "tracks": 7, "wow_pp": 0.6}, {"fecha": "2026-03-12", "pct": 6.62, "streams": 6971406, "tracks": 17, "wow_pp": 3.95}, {"fecha": "2026-03-19", "pct": 4.17, "streams": 4266467, "tracks": 10, "wow_pp": -2.45}, {"fecha": "2026-03-26", "pct": 2.23, "streams": 2421081, "tracks": 5, "wow_pp": -1.94}, {"fecha": "2026-04-02", "pct": 2.5, "streams": 2626412, "tracks": 6, "wow_pp": 0.27}, {"fecha": "2026-04-09", "pct": 2.66, "streams": 2613073, "tracks": 6, "wow_pp": 0.17}, {"fecha": "2026-04-16", "pct": 5.07, "streams": 5096406, "tracks": 12, "wow_pp": 2.41}, {"fecha": "2026-04-23", "pct": 8.4, "streams": 8398691, "tracks": 17, "wow_pp": 3.33}, {"fecha": "2026-04-30", "pct": 6.51, "streams": 6231037, "tracks": 14, "wow_pp": -1.89}, {"fecha": "2026-05-07", "pct": 6.1, "streams": 5560657, "tracks": 13, "wow_pp": -0.41}, {"fecha": "2026-05-14", "pct": 6.2, "streams": 5552051, "tracks": 13, "wow_pp": 0.1}, {"fecha": "2026-05-21", "pct": 5.65, "streams": 5083467, "tracks": 12, "wow_pp": -0.55}, {"fecha": "2026-05-28", "pct": 5.62, "streams": 4924881, "tracks": 12, "wow_pp": -0.03}, {"fecha": "2026-06-04", "pct": 6.09, "streams": 5307941, "tracks": 13, "wow_pp": 0.47}, {"fecha": "2026-06-11", "pct": 3.24, "streams": 3387619, "tracks": 8, "wow_pp": -2.84}, {"fecha": "2026-06-18", "pct": 10.0, "streams": 8808608, "tracks": 20, "wow_pp": 6.76}, {"fecha": "2026-06-25", "pct": 7.56, "streams": 6454128, "tracks": 17, "wow_pp": -2.44}, {"fecha": "2026-07-02", "pct": 4.82, "streams": 4094161, "tracks": 11, "wow_pp": -2.74}, {"fecha": "2026-07-09", "pct": 4.45, "streams": 3624987, "tracks": 11, "wow_pp": -0.38}, {"fecha": "2026-07-16", "pct": 2.55, "streams": 2227712, "tracks": 6, "wow_pp": -1.9}, {"fecha": "2026-07-23", "pct": 2.31, "streams": 2060845, "tracks": 5, "wow_pp": -0.24}, {"fecha": "2026-07-30", "pct": 2.19, "streams": 2007947, "tracks": 5, "wow_pp": -0.12}, {"fecha": "2026-08-06", "pct": 3.48, "streams": 3186235, "tracks": 8, "wow_pp": 1.29}, {"fecha": "2026-08-13", "pct": 2.98, "streams": 2681916, "tracks": 7, "wow_pp": -0.51}, {"fecha": "2026-08-20", "pct": 2.03, "streams": 1871394, "tracks": 5, "wow_pp": -0.94}, {"fecha": "2026-08-27", "pct": 1.68, "streams": 1579174, "tracks": 4, "wow_pp": -0.36}, {"fecha": "2026-09-03", "pct": 2.35, "streams": 2300025, "tracks": 6, "wow_pp": 0.67}, {"fecha": "2026-09-10", "pct": 2.7, "streams": 2625068, "tracks": 7, "wow_pp": 0.35}, {"fecha": "2026-09-17", "pct": 2.35, "streams": 2299802, "tracks": 6, "wow_pp": -0.35}, {"fecha": "2026-09-24", "pct": 2.27, "streams": 2170857, "tracks": 6, "wow_pp": -0.09}, {"fecha": "2026-10-01", "pct": 3.67, "streams": 3458415, "tracks": 9, "wow_pp": 1.4}, {"fecha": "2026-10-08", "pct": 2.61, "streams": 2401010, "tracks": 7, "wow_pp": -1.06}]}, {"categoria_madre": "K-Pop", "points": [{"fecha": "2026-01-08", "pct": 0.47, "streams": 544676, "tracks": 1, "wow_pp": null}, {"fecha": "2026-01-15", "pct": 0.43, "streams": 518976, "tracks": 1, "wow_pp": -0.04}, {"fecha": "2026-01-22", "pct": 0.44, "streams": 533030, "tracks": 1, "wow_pp": 0.01}, {"fecha": "2026-01-29", "pct": 0.45, "streams": 550348, "tracks": 1, "wow_pp": 0.01}, {"fecha": "2026-02-05", "pct": 0.45, "streams": 537571, "tracks": 1, "wow_pp": -0.0}, {"fecha": "2026-02-12", "pct": 0.41, "streams": 492142, "tracks": 1, "wow_pp": -0.04}, {"fecha": "2026-02-19", "pct": 0.4, "streams": 485850, "tracks": 1, "wow_pp": -0.01}, {"fecha": "2026-02-26", "pct": 0.39, "streams": 434016, "tracks": 1, "wow_pp": -0.01}, {"fecha": "2026-03-05", "pct": 0.42, "streams": 451527, "tracks": 1, "wow_pp": 0.03}, {"fecha": "2026-03-12", "pct": 0.41, "streams": 428277, "tracks": 1, "wow_pp": -0.01}, {"fecha": "2026-03-19", "pct": 0.34, "streams": 352680, "tracks": 1, "wow_pp": -0.06}, {"fecha": "2026-03-26", "pct": 11.83, "streams": 12832235, "tracks": 14, "wow_pp": 11.48}, {"fecha": "2026-04-02", "pct": 9.25, "streams": 9732837, "tracks": 14, "wow_pp": -2.57}, {"fecha": "2026-04-09", "pct": 8.15, "streams": 8004830, "tracks": 14, "wow_pp": -1.1}, {"fecha": "2026-04-16", "pct": 7.87, "streams": 7909271, "tracks": 15, "wow_pp": -0.29}, {"fecha": "2026-04-23", "pct": 6.69, "streams": 6689247, "tracks": 13, "wow_pp": -1.18}, {"fecha": "2026-04-30", "pct": 5.94, "streams": 5684040, "tracks": 12, "wow_pp": -0.75}, {"fecha": "2026-05-07", "pct": 5.01, "streams": 4565257, "tracks": 10, "wow_pp": -0.93}, {"fecha": "2026-05-14", "pct": 4.55, "streams": 4072637, "tracks": 9, "wow_pp": -0.46}, {"fecha": "2026-05-21", "pct": 4.39, "streams": 3949874, "tracks": 9, "wow_pp": -0.16}, {"fecha": "2026-05-28", "pct": 2.89, "streams": 2529586, "tracks": 5, "wow_pp": -1.51}, {"fecha": "2026-06-04", "pct": 3.33, "streams": 2903797, "tracks": 6, "wow_pp": 0.44}, {"fecha": "2026-06-11", "pct": 2.06, "streams": 2157228, "tracks": 4, "wow_pp": -1.27}, {"fecha": "2026-06-18", "pct": 3.02, "streams": 2658908, "tracks": 5, "wow_pp": 0.95}, {"fecha": "2026-06-25", "pct": 2.74, "streams": 2334251, "tracks": 5, "wow_pp": -0.28}, {"fecha": "2026-07-02", "pct": 1.18, "streams": 1000916, "tracks": 1, "wow_pp": -1.56}, {"fecha": "2026-07-09", "pct": 1.12, "streams": 911956, "tracks": 1, "wow_pp": -0.06}, {"fecha": "2026-07-16", "pct": 0.99, "streams": 866152, "tracks": 1, "wow_pp": -0.13}, {"fecha": "2026-07-23", "pct": 1.4, "streams": 1253627, "tracks": 2, "wow_pp": 0.41}, {"fecha": "2026-07-30", "pct": 1.7, "streams": 1554464, "tracks": 3, "wow_pp": 0.29}, {"fecha": "2026-08-06", "pct": 1.81, "streams": 1655428, "tracks": 3, "wow_pp": 0.11}, {"fecha": "2026-08-13", "pct": 1.36, "streams": 1223956, "tracks": 2, "wow_pp": -0.45}, {"fecha": "2026-08-20", "pct": 1.58, "streams": 1457122, "tracks": 3, "wow_pp": 0.22}, {"fecha": "2026-08-27", "pct": 1.08, "streams": 1022485, "tracks": 2, "wow_pp": -0.5}, {"fecha": "2026-09-03", "pct": 1.03, "streams": 1005625, "tracks": 2, "wow_pp": -0.06}, {"fecha": "2026-09-10", "pct": 1.03, "streams": 999492, "tracks": 2, "wow_pp": 0.0}, {"fecha": "2026-09-17", "pct": 0.99, "streams": 971219, "tracks": 2, "wow_pp": -0.03}, {"fecha": "2026-09-24", "pct": 1.0, "streams": 960387, "tracks": 2, "wow_pp": 0.01}, {"fecha": "2026-10-01", "pct": 1.01, "streams": 955402, "tracks": 2, "wow_pp": 0.01}, {"fecha": "2026-10-08", "pct": 1.04, "streams": 958285, "tracks": 2, "wow_pp": 0.03}]}, {"categoria_madre": "Latino", "points": [{"fecha": "2026-01-08", "pct": 35.69, "streams": 41545045, "tracks": 64, "wow_pp": null}, {"fecha": "2026-01-15", "pct": 37.48, "streams": 45253746, "tracks": 63, "wow_pp": 1.79}, {"fecha": "2026-01-22", "pct": 37.27, "streams": 44963749, "tracks": 65, "wow_pp": -0.21}, {"fecha": "2026-01-29", "pct": 37.45, "streams": 45305981, "tracks": 66, "wow_pp": 0.18}, {"fecha": "2026-02-05", "pct": 38.75, "streams": 46175068, "tracks": 68, "wow_pp": 1.3}, {"fecha": "2026-02-12", "pct": 46.9, "streams": 56558025, "tracks": 83, "wow_pp": 8.15}, {"fecha": "2026-02-19", "pct": 51.56, "streams": 62923663, "tracks": 88, "wow_pp": 4.66}, {"fecha": "2026-02-26", "pct": 51.86, "streams": 57630984, "tracks": 95, "wow_pp": 0.3}, {"fecha": "2026-03-05", "pct": 50.33, "streams": 54545939, "tracks": 91, "wow_pp": -1.52}, {"fecha": "2026-03-12", "pct": 46.5, "streams": 48948778, "tracks": 81, "wow_pp": -3.84}, {"fecha": "2026-03-19", "pct": 47.19, "streams": 48263524, "tracks": 84, "wow_pp": 0.69}, {"fecha": "2026-03-26", "pct": 39.2, "streams": 42541522, "tracks": 78, "wow_pp": -7.99}, {"fecha": "2026-04-02", "pct": 40.44, "streams": 42540488, "tracks": 77, "wow_pp": 1.23}, {"fecha": "2026-04-09", "pct": 39.38, "streams": 38659104, "tracks": 74, "wow_pp": -1.05}, {"fecha": "2026-04-16", "pct": 39.9, "streams": 40106362, "tracks": 74, "wow_pp": 0.52}, {"fecha": "2026-04-23", "pct": 40.12, "streams": 40097498, "tracks": 76, "wow_pp": 0.22}, {"fecha": "2026-04-30", "pct": 38.97, "streams": 37291912, "tracks": 75, "wow_pp": -1.15}, {"fecha": "2026-05-07", "pct": 38.62, "streams": 35195653, "tracks": 75, "wow_pp": -0.35}, {"fecha": "2026-05-14", "pct": 39.56, "streams": 35413961, "tracks": 78, "wow_pp": 0.95}, {"fecha": "2026-05-21", "pct": 39.5, "streams": 35517405, "tracks": 78, "wow_pp": -0.07}, {"fecha": "2026-05-28", "pct": 40.07, "streams": 35122480, "tracks": 79, "wow_pp": 0.58}, {"fecha": "2026-06-04", "pct": 42.26, "streams": 36858820, "tracks": 84, "wow_pp": 2.19}, {"fecha": "2026-06-11", "pct": 30.5, "streams": 31871972, "tracks": 70, "wow_pp": -11.76}, {"fecha": "2026-06-18", "pct": 36.87, "streams": 32472179, "tracks": 75, "wow_pp": 6.37}, {"fecha": "2026-06-25", "pct": 42.45, "streams": 36222812, "tracks": 85, "wow_pp": 5.58}, {"fecha": "2026-07-02", "pct": 47.93, "streams": 40677838, "tracks": 95, "wow_pp": 5.48}, {"fecha": "2026-07-09", "pct": 47.85, "streams": 39004643, "tracks": 91, "wow_pp": -0.08}, {"fecha": "2026-07-16", "pct": 42.37, "streams": 37041703, "tracks": 86, "wow_pp": -5.48}, {"fecha": "2026-07-23", "pct": 43.3, "streams": 38671313, "tracks": 88, "wow_pp": 0.94}, {"fecha": "2026-07-30", "pct": 50.8, "streams": 46561551, "tracks": 97, "wow_pp": 7.5}, {"fecha": "2026-08-06", "pct": 53.99, "streams": 49398554, "tracks": 103, "wow_pp": 3.19}, {"fecha": "2026-08-13", "pct": 55.28, "streams": 49820210, "tracks": 106, "wow_pp": 1.29}, {"fecha": "2026-08-20", "pct": 56.62, "streams": 52116020, "tracks": 107, "wow_pp": 1.33}, {"fecha": "2026-08-27", "pct": 58.02, "streams": 54685475, "tracks": 110, "wow_pp": 1.41}, {"fecha": "2026-09-03", "pct": 57.4, "streams": 56224093, "tracks": 107, "wow_pp": -0.63}, {"fecha": "2026-09-10", "pct": 57.67, "streams": 56089617, "tracks": 108, "wow_pp": 0.28}, {"fecha": "2026-09-17", "pct": 58.32, "streams": 56983129, "tracks": 107, "wow_pp": 0.64}, {"fecha": "2026-09-24", "pct": 56.91, "streams": 54496680, "tracks": 104, "wow_pp": -1.41}, {"fecha": "2026-10-01", "pct": 54.59, "streams": 51477586, "tracks": 100, "wow_pp": -2.31}, {"fecha": "2026-10-08", "pct": 51.57, "streams": 47396117, "tracks": 95, "wow_pp": -3.02}]}, {"categoria_madre": "Local", "points": [{"fecha": "2026-01-08", "pct": 61.6, "streams": 71707868, "tracks": 131, "wow_pp": null}, {"fecha": "2026-01-15", "pct": 59.76, "streams": 72146030, "tracks": 132, "wow_pp": -1.84}, {"fecha": "2026-01-22", "pct": 60.22, "streams": 72641276, "tracks": 130, "wow_pp": 0.46}, {"fecha": "2026-01-29", "pct": 59.38, "streams": 71832868, "tracks": 127, "wow_pp": -0.84}, {"fecha": "2026-02-05", "pct": 58.28, "streams": 69454683, "tracks": 125, "wow_pp": -1.09}, {"fecha": "2026-02-12", "pct": 49.79, "streams": 60053049, "tracks": 109, "wow_pp": -8.49}, {"fecha": "2026-02-19", "pct": 46.43, "streams": 56660534, "tracks": 107, "wow_pp": -3.37}, {"fecha": "2026-02-26", "pct": 45.68, "streams": 50766647, "tracks": 99, "wow_pp": -0.75}, {"fecha": "2026-03-05", "pct": 46.58, "streams": 50473922, "tracks": 101, "wow_pp": 0.9}, {"fecha": "2026-03-12", "pct": 46.47, "streams": 48925238, "tracks": 101, "wow_pp": -0.1}, {"fecha": "2026-03-19", "pct": 48.29, "streams": 49388740, "tracks": 105, "wow_pp": 1.82}, {"fecha": "2026-03-26", "pct": 46.74, "streams": 50720105, "tracks": 103, "wow_pp": -1.55}, {"fecha": "2026-04-02", "pct": 47.82, "streams": 50306466, "tracks": 103, "wow_pp": 1.08}, {"fecha": "2026-04-09", "pct": 49.8, "streams": 48882109, "tracks": 106, "wow_pp": 1.98}, {"fecha": "2026-04-16", "pct": 47.16, "streams": 47396353, "tracks": 99, "wow_pp": -2.64}, {"fecha": "2026-04-23", "pct": 44.78, "streams": 44748340, "tracks": 94, "wow_pp": -2.38}, {"fecha": "2026-04-30", "pct": 48.58, "streams": 46486265, "tracks": 99, "wow_pp": 3.8}, {"fecha": "2026-05-07", "pct": 50.27, "streams": 45820268, "tracks": 102, "wow_pp": 1.7}, {"fecha": "2026-05-14", "pct": 49.69, "streams": 44477261, "tracks": 100, "wow_pp": -0.59}, {"fecha": "2026-05-21", "pct": 50.46, "streams": 45377349, "tracks": 101, "wow_pp": 0.77}, {"fecha": "2026-05-28", "pct": 51.42, "streams": 45073508, "tracks": 104, "wow_pp": 0.96}, {"fecha": "2026-06-04", "pct": 48.32, "streams": 42145782, "tracks": 97, "wow_pp": -3.1}, {"fecha": "2026-06-11", "pct": 64.19, "streams": 67084312, "tracks": 118, "wow_pp": 15.87}, {"fecha": "2026-06-18", "pct": 50.11, "streams": 44131997, "tracks": 100, "wow_pp": -14.09}, {"fecha": "2026-06-25", "pct": 47.26, "streams": 40327642, "tracks": 93, "wow_pp": -2.85}, {"fecha": "2026-07-02", "pct": 46.07, "streams": 39096291, "tracks": 93, "wow_pp": -1.19}, {"fecha": "2026-07-09", "pct": 46.58, "streams": 37971083, "tracks": 97, "wow_pp": 0.52}, {"fecha": "2026-07-16", "pct": 54.09, "streams": 47295086, "tracks": 107, "wow_pp": 7.51}, {"fecha": "2026-07-23", "pct": 52.98, "streams": 47315217, "tracks": 105, "wow_pp": -1.11}, {"fecha": "2026-07-30", "pct": 45.31, "streams": 41526007, "tracks": 95, "wow_pp": -7.67}, {"fecha": "2026-08-06", "pct": 40.72, "streams": 37254239, "tracks": 86, "wow_pp": -4.59}, {"fecha": "2026-08-13", "pct": 40.38, "streams": 36389327, "tracks": 85, "wow_pp": -0.34}, {"fecha": "2026-08-20", "pct": 39.77, "streams": 36606872, "tracks": 85, "wow_pp": -0.61}, {"fecha": "2026-08-27", "pct": 39.22, "streams": 36959146, "tracks": 84, "wow_pp": -0.55}, {"fecha": "2026-09-03", "pct": 39.23, "streams": 38428666, "tracks": 85, "wow_pp": 0.01}, {"fecha": "2026-09-10", "pct": 38.6, "streams": 37542721, "tracks": 83, "wow_pp": -0.63}, {"fecha": "2026-09-17", "pct": 38.34, "streams": 37461742, "tracks": 85, "wow_pp": -0.26}, {"fecha": "2026-09-24", "pct": 39.82, "streams": 38138487, "tracks": 88, "wow_pp": 1.49}, {"fecha": "2026-10-01", "pct": 40.73, "streams": 38403269, "tracks": 89, "wow_pp": 0.9}, {"fecha": "2026-10-08", "pct": 44.78, "streams": 41152551, "tracks": 96, "wow_pp": 4.05}]}], "genero_table": [{"categoria_madre": "Local", "genero": "Rock/Indie", "ms_pct": 25.58, "wow_pp": 1.98, "tracks": 54, "streams": 23505562, "wow_streams_pct": 5.6}, {"categoria_madre": "Local", "genero": "Cumbia", "ms_pct": 7.9, "wow_pp": 0.18, "tracks": 16, "streams": 7259360, "wow_streams_pct": -0.2}, {"categoria_madre": "Local", "genero": "Cuarteto", "ms_pct": 2.88, "wow_pp": 0.22, "tracks": 7, "streams": 2645342, "wow_streams_pct": 5.5}, {"categoria_madre": "Local", "genero": "RKT", "ms_pct": 2.86, "wow_pp": 0.43, "tracks": 6, "streams": 2629214, "wow_streams_pct": 14.5}, {"categoria_madre": "Local", "genero": "Urbano", "ms_pct": 2.52, "wow_pp": 0.88, "tracks": 6, "streams": 2319725, "wow_streams_pct": 50.0}, {"categoria_madre": "Local", "genero": "Pop", "ms_pct": 1.59, "wow_pp": 0.04, "tracks": 4, "streams": 1459828, "wow_streams_pct": 0.2}, {"categoria_madre": "Local", "genero": "DJ", "ms_pct": 0.73, "wow_pp": 0.3, "tracks": 2, "streams": 674499, "wow_streams_pct": 65.6}, {"categoria_madre": "Local", "genero": "Tango/Folklore", "ms_pct": 0.72, "wow_pp": 0.02, "tracks": 1, "streams": 659021, "wow_streams_pct": 0.2}, {"categoria_madre": "Latino", "genero": "Urbano", "ms_pct": 47.39, "wow_pp": -3.03, "tracks": 86, "streams": 43557624, "wow_streams_pct": -8.4}, {"categoria_madre": "Latino", "genero": "Corridos Mexicanos", "ms_pct": 2.6, "wow_pp": -0.01, "tracks": 6, "streams": 2386720, "wow_streams_pct": -2.9}, {"categoria_madre": "Latino", "genero": "Pop", "ms_pct": 1.58, "wow_pp": 0.02, "tracks": 3, "streams": 1451773, "wow_streams_pct": -1.5}, {"categoria_madre": "Anglo", "genero": "Pop", "ms_pct": 1.81, "wow_pp": -1.05, "tracks": 5, "streams": 1660505, "wow_streams_pct": -38.4}, {"categoria_madre": "Anglo", "genero": "Rock/Indie", "ms_pct": 0.81, "wow_pp": -0.0, "tracks": 2, "streams": 740505, "wow_streams_pct": -2.9}, {"categoria_madre": "K-Pop", "genero": "K-Pop", "ms_pct": 1.04, "wow_pp": 0.03, "tracks": 2, "streams": 958285, "wow_streams_pct": 0.3}]};
+
+  const DONUT_DATA = {"fecha": "2026-10-08", "madre_donut": [{"categoria_madre": "Latino", "pct": 51.57, "streams": 47396117, "tracks": 95}, {"categoria_madre": "Local", "pct": 44.78, "streams": 41152551, "tracks": 96}, {"categoria_madre": "Anglo", "pct": 2.61, "streams": 2401010, "tracks": 7}, {"categoria_madre": "K-Pop", "pct": 1.04, "streams": 958285, "tracks": 2}], "genero_by_madre": {"Anglo": [{"genero": "Pop", "pct_of_total": 1.81, "streams": 1660505, "tracks": 5, "pct_within_madre": 69.16}, {"genero": "Rock/Indie", "pct_of_total": 0.81, "streams": 740505, "tracks": 2, "pct_within_madre": 30.84}], "K-Pop": [{"genero": "K-Pop", "pct_of_total": 1.04, "streams": 958285, "tracks": 2, "pct_within_madre": 100.0}], "Latino": [{"genero": "Urbano", "pct_of_total": 47.39, "streams": 43557624, "tracks": 86, "pct_within_madre": 91.9}, {"genero": "Corridos Mexicanos", "pct_of_total": 2.6, "streams": 2386720, "tracks": 6, "pct_within_madre": 5.04}, {"genero": "Pop", "pct_of_total": 1.58, "streams": 1451773, "tracks": 3, "pct_within_madre": 3.06}], "Local": [{"genero": "Rock/Indie", "pct_of_total": 25.58, "streams": 23505562, "tracks": 54, "pct_within_madre": 57.12}, {"genero": "Cumbia", "pct_of_total": 7.9, "streams": 7259360, "tracks": 16, "pct_within_madre": 17.64}, {"genero": "Cuarteto", "pct_of_total": 2.88, "streams": 2645342, "tracks": 7, "pct_within_madre": 6.43}, {"genero": "RKT", "pct_of_total": 2.86, "streams": 2629214, "tracks": 6, "pct_within_madre": 6.39}, {"genero": "Urbano", "pct_of_total": 2.52, "streams": 2319725, "tracks": 6, "pct_within_madre": 5.64}, {"genero": "Pop", "pct_of_total": 1.59, "streams": 1459828, "tracks": 4, "pct_within_madre": 3.55}, {"genero": "DJ", "pct_of_total": 0.73, "streams": 674499, "tracks": 2, "pct_within_madre": 1.64}, {"genero": "Tango/Folklore", "pct_of_total": 0.72, "streams": 659021, "tracks": 1, "pct_within_madre": 1.6}]}};
+  const LOCAL_TOP10 = {"Cuarteto": [{"rank": 1, "track_title": "Dime Tú - En Vivo Movistar Arena", "artista_principal": "Q' Lokura", "artistas_colab": "Nahuel Pennisi", "streams": 462564, "posicion": 61}, {"rank": 2, "track_title": "Cuidado Que Te Supero", "artista_principal": "Q' Lokura", "artistas_colab": "Los Herrera", "streams": 411408, "posicion": 90}, {"rank": 3, "track_title": "Quédate / Soy Favela / Lo que hay x aqui - En Vivo", "artista_principal": "Q' Lokura", "artistas_colab": "", "streams": 376849, "posicion": 116}, {"rank": 4, "track_title": "Puñaladas - En Vivo Plaza De La Música", "artista_principal": "Q' Lokura", "artistas_colab": "Lauta;Amigo de Artistas;Tote", "streams": 375280, "posicion": 118}, {"rank": 5, "track_title": "Superestrella - En Vivo", "artista_principal": "DesaKTa2", "artistas_colab": "", "streams": 366736, "posicion": 126}, {"rank": 6, "track_title": "No Puedo Fingirlo", "artista_principal": "Ulises Bueno", "artistas_colab": "DesaKTa2", "streams": 332135, "posicion": 174}, {"rank": 7, "track_title": "Cuarteto Sessions #6 - En Vivo", "artista_principal": "Q' Lokura", "artistas_colab": "", "streams": 320370, "posicion": 192}], "Cumbia": [{"rank": 1, "track_title": "Puñaladas", "artista_principal": "Lauta", "artistas_colab": "Amigo de Artistas;Tote", "streams": 716364, "posicion": 13}, {"rank": 2, "track_title": "Tu jardín con enanitos", "artista_principal": "Roze Oficial", "artistas_colab": "Max Carra;Valen;RAMKY EN LOS CONTROLES", "streams": 629354, "posicion": 21}, {"rank": 3, "track_title": "UWAIE - versión cumbia", "artista_principal": "Max Carra", "artistas_colab": "", "streams": 622563, "posicion": 22}, {"rank": 4, "track_title": "¿Quién te dijo? - En Vivo", "artista_principal": "Los Herrera", "artistas_colab": "Q' Lokura", "streams": 577780, "posicion": 29}, {"rank": 5, "track_title": "Amor de Vago", "artista_principal": "La T y La M", "artistas_colab": "Malandro", "streams": 515479, "posicion": 47}, {"rank": 6, "track_title": "Corazón Sin Cara - En Vivo", "artista_principal": "Simon Aguirre", "artistas_colab": "", "streams": 499696, "posicion": 51}, {"rank": 7, "track_title": "Para La Gilada - Remix", "artista_principal": "Meta Guacha", "artistas_colab": "Callejero Fino;BM", "streams": 446083, "posicion": 70}, {"rank": 8, "track_title": "Si No Es Muy Tarde - Versión Cumbia", "artista_principal": "Luciano Pereyra", "artistas_colab": "Ezequiel Y La Clave;Un Poco de Ruido;Pinky SD", "streams": 438738, "posicion": 74}, {"rank": 9, "track_title": "Se Parece Más A Ti", "artista_principal": "Jambao", "artistas_colab": "", "streams": 402737, "posicion": 96}, {"rank": 10, "track_title": "Soy Favela", "artista_principal": "La T y La M", "artistas_colab": "", "streams": 399101, "posicion": 101}], "DJ": [{"rank": 1, "track_title": "Corazon De Seda", "artista_principal": "Klasico", "artistas_colab": "Ozuna", "streams": 344254, "posicion": 156}, {"rank": 2, "track_title": "PERREO TH 7", "artista_principal": "Dj Plaga", "artistas_colab": "mamiyosoyelth", "streams": 330245, "posicion": 176}], "Pop": [{"rank": 1, "track_title": "1Amor", "artista_principal": "Lali", "artistas_colab": "", "streams": 468083, "posicion": 60}, {"rank": 2, "track_title": "Tu Misterioso Alguien", "artista_principal": "Miranda!", "artistas_colab": "", "streams": 353882, "posicion": 141}, {"rank": 3, "track_title": "MEJOR QUE VOS", "artista_principal": "Lali", "artistas_colab": "Miranda!", "streams": 320491, "posicion": 191}, {"rank": 4, "track_title": "Dos Amantes", "artista_principal": "TINI", "artistas_colab": "Ulises Bueno", "streams": 317372, "posicion": 198}], "RKT": [{"rank": 1, "track_title": "NO LES DA", "artista_principal": "Callejero Fino", "artistas_colab": "Lea in the Mix", "streams": 562741, "posicion": 31}, {"rank": 2, "track_title": "PERRA", "artista_principal": "Lezcano Alan", "artistas_colab": "", "streams": 538944, "posicion": 40}, {"rank": 3, "track_title": "YAKUZA", "artista_principal": "La Joaqui", "artistas_colab": "", "streams": 430037, "posicion": 80}, {"rank": 4, "track_title": "OA TA TA", "artista_principal": "Callejero Fino", "artistas_colab": "Lea in the Mix", "streams": 413810, "posicion": 88}, {"rank": 5, "track_title": "JUANO DSKT | DJ TAO Sessions #33", "artista_principal": "DJ Tao", "artistas_colab": "JUANO DSKT", "streams": 345065, "posicion": 155}, {"rank": 6, "track_title": "2 GATITA$", "artista_principal": "Callejero Fino", "artistas_colab": "Martin Vegas", "streams": 338617, "posicion": 167}], "Rock/Indie": [{"rank": 1, "track_title": "Por Mil Noches", "artista_principal": "Airbag", "artistas_colab": "", "streams": 657850, "posicion": 17}, {"rank": 2, "track_title": "Como Eran Las Cosas", "artista_principal": "Babasonicos", "artistas_colab": "", "streams": 657585, "posicion": 18}, {"rank": 3, "track_title": "Creo", "artista_principal": "Callejeros", "artistas_colab": "", "streams": 647756, "posicion": 19}, {"rank": 4, "track_title": "Pensamientos", "artista_principal": "Airbag", "artistas_colab": "", "streams": 599366, "posicion": 25}, {"rank": 5, "track_title": "Obsesionario en La Mayor", "artista_principal": "Tan Bionica", "artistas_colab": "", "streams": 585429, "posicion": 27}, {"rank": 6, "track_title": "A las Nueve", "artista_principal": "No Te Va Gustar", "artistas_colab": "", "streams": 579113, "posicion": 28}, {"rank": 7, "track_title": "Bicho de Ciudad", "artista_principal": "Los Piojos", "artistas_colab": "", "streams": 565987, "posicion": 30}, {"rank": 8, "track_title": "Nunca quise", "artista_principal": "Intoxicados", "artistas_colab": "", "streams": 559304, "posicion": 34}, {"rank": 9, "track_title": "Pasos Al Costado", "artista_principal": "Turf", "artistas_colab": "", "streams": 548157, "posicion": 39}, {"rank": 10, "track_title": "Flaca", "artista_principal": "Andrés Calamaro", "artistas_colab": "", "streams": 528130, "posicion": 44}], "Tango/Folklore": [{"rank": 1, "track_title": "La Noche Sin Tí", "artista_principal": "Los Huayra", "artistas_colab": "", "streams": 659021, "posicion": 16}], "Urbano": [{"rank": 1, "track_title": "Niño", "artista_principal": "Milo j", "artistas_colab": "", "streams": 452259, "posicion": 66}, {"rank": 2, "track_title": "Piel", "artista_principal": "Tiago PZK", "artistas_colab": "Ke Personajes", "streams": 425754, "posicion": 82}, {"rank": 3, "track_title": "Te Gustan Villeros", "artista_principal": "Tiago PZK", "artistas_colab": "", "streams": 390824, "posicion": 106}, {"rank": 4, "track_title": "Con Otra", "artista_principal": "Cazzu", "artistas_colab": "", "streams": 385415, "posicion": 110}, {"rank": 5, "track_title": "hIGhLIGhTS", "artista_principal": "Paulo Londra", "artistas_colab": "", "streams": 347870, "posicion": 153}, {"rank": 6, "track_title": "La Paso Cabrón", "artista_principal": "Trap Capos", "artistas_colab": "Noriel;Gigolo Y La Exce;Sammy & Falsetto;Mike Duran;Baby Angel", "streams": 317603, "posicion": 197}]};
+  const FC_DATA = {"fecha_actual": "2026-10-08", "fc_evolution": [{"fecha": "2026-01-08", "Frontline": {"pct": 54.49, "streams": 63431641, "tracks": 92}, "Catalogo": {"pct": 45.51, "streams": 52968472, "tracks": 108}}, {"fecha": "2026-01-15", "Frontline": {"pct": 57.56, "streams": 69485293, "tracks": 98}, "Catalogo": {"pct": 42.44, "streams": 51239558, "tracks": 102}}, {"fecha": "2026-01-22", "Frontline": {"pct": 58.06, "streams": 70040419, "tracks": 98}, "Catalogo": {"pct": 41.94, "streams": 50592960, "tracks": 102}}, {"fecha": "2026-01-29", "Frontline": {"pct": 58.98, "streams": 71354310, "tracks": 101}, "Catalogo": {"pct": 41.02, "streams": 49622013, "tracks": 99}}, {"fecha": "2026-02-05", "Frontline": {"pct": 57.43, "streams": 68434252, "tracks": 94}, "Catalogo": {"pct": 42.57, "streams": 50730792, "tracks": 106}}, {"fecha": "2026-02-12", "Frontline": {"pct": 59.21, "streams": 71415521, "tracks": 98}, "Catalogo": {"pct": 40.79, "streams": 49189962, "tracks": 102}}, {"fecha": "2026-02-19", "Frontline": {"pct": 55.4, "streams": 67617685, "tracks": 89}, "Catalogo": {"pct": 44.6, "streams": 54425585, "tracks": 111}}, {"fecha": "2026-02-26", "Frontline": {"pct": 54.54, "streams": 60613750, "tracks": 90}, "Catalogo": {"pct": 45.46, "streams": 50520679, "tracks": 110}}, {"fecha": "2026-03-05", "Frontline": {"pct": 53.39, "streams": 57862717, "tracks": 87}, "Catalogo": {"pct": 46.61, "streams": 50505817, "tracks": 113}}, {"fecha": "2026-03-12", "Frontline": {"pct": 55.13, "streams": 58035049, "tracks": 92}, "Catalogo": {"pct": 44.87, "streams": 47238650, "tracks": 108}}, {"fecha": "2026-03-19", "Frontline": {"pct": 53.28, "streams": 54494549, "tracks": 89}, "Catalogo": {"pct": 46.72, "streams": 47776862, "tracks": 111}}, {"fecha": "2026-03-26", "Frontline": {"pct": 56.2, "streams": 60984349, "tracks": 96}, "Catalogo": {"pct": 43.8, "streams": 47530594, "tracks": 104}}, {"fecha": "2026-04-02", "Frontline": {"pct": 54.21, "streams": 57029425, "tracks": 96}, "Catalogo": {"pct": 45.79, "streams": 48176778, "tracks": 104}}, {"fecha": "2026-04-09", "Frontline": {"pct": 50.2, "streams": 49279024, "tracks": 90}, "Catalogo": {"pct": 49.8, "streams": 48880092, "tracks": 110}}, {"fecha": "2026-04-16", "Frontline": {"pct": 49.74, "streams": 49995458, "tracks": 89}, "Catalogo": {"pct": 50.26, "streams": 50512934, "tracks": 111}}, {"fecha": "2026-04-23", "Frontline": {"pct": 48.34, "streams": 48312390, "tracks": 87}, "Catalogo": {"pct": 51.66, "streams": 51621386, "tracks": 113}}, {"fecha": "2026-04-30", "Frontline": {"pct": 50.36, "streams": 48190172, "tracks": 92}, "Catalogo": {"pct": 49.64, "streams": 47503082, "tracks": 108}}, {"fecha": "2026-05-07", "Frontline": {"pct": 47.73, "streams": 43503917, "tracks": 87}, "Catalogo": {"pct": 52.27, "streams": 47637918, "tracks": 113}}, {"fecha": "2026-05-14", "Frontline": {"pct": 44.26, "streams": 39620156, "tracks": 80}, "Catalogo": {"pct": 55.74, "streams": 49895754, "tracks": 120}}, {"fecha": "2026-05-21", "Frontline": {"pct": 43.91, "streams": 39490604, "tracks": 80}, "Catalogo": {"pct": 56.09, "streams": 50437491, "tracks": 120}}, {"fecha": "2026-05-28", "Frontline": {"pct": 43.34, "streams": 37987701, "tracks": 79}, "Catalogo": {"pct": 56.66, "streams": 49662754, "tracks": 121}}, {"fecha": "2026-06-04", "Frontline": {"pct": 46.41, "streams": 40480498, "tracks": 85}, "Catalogo": {"pct": 53.59, "streams": 46735842, "tracks": 115}}, {"fecha": "2026-06-11", "Frontline": {"pct": 32.77, "streams": 34248121, "tracks": 70}, "Catalogo": {"pct": 67.23, "streams": 70253010, "tracks": 130}}, {"fecha": "2026-06-18", "Frontline": {"pct": 43.82, "streams": 38593741, "tracks": 82}, "Catalogo": {"pct": 56.18, "streams": 49477951, "tracks": 118}}, {"fecha": "2026-06-25", "Frontline": {"pct": 41.29, "streams": 35235740, "tracks": 78}, "Catalogo": {"pct": 58.71, "streams": 50103093, "tracks": 122}}, {"fecha": "2026-07-02", "Frontline": {"pct": 39.25, "streams": 33309997, "tracks": 70}, "Catalogo": {"pct": 60.75, "streams": 51559209, "tracks": 130}}, {"fecha": "2026-07-09", "Frontline": {"pct": 39.17, "streams": 31931017, "tracks": 68}, "Catalogo": {"pct": 60.83, "streams": 49581652, "tracks": 132}}, {"fecha": "2026-07-16", "Frontline": {"pct": 38.36, "streams": 33541591, "tracks": 64}, "Catalogo": {"pct": 61.64, "streams": 53889062, "tracks": 136}}, {"fecha": "2026-07-23", "Frontline": {"pct": 35.02, "streams": 31269232, "tracks": 59}, "Catalogo": {"pct": 64.98, "streams": 58031770, "tracks": 141}}, {"fecha": "2026-07-30", "Frontline": {"pct": 34.23, "streams": 31376189, "tracks": 58}, "Catalogo": {"pct": 65.77, "streams": 60273780, "tracks": 142}}, {"fecha": "2026-08-06", "Frontline": {"pct": 35.75, "streams": 32705022, "tracks": 61}, "Catalogo": {"pct": 64.25, "streams": 58789434, "tracks": 139}}, {"fecha": "2026-08-13", "Frontline": {"pct": 35.64, "streams": 32117865, "tracks": 60}, "Catalogo": {"pct": 64.36, "streams": 57997544, "tracks": 140}}, {"fecha": "2026-08-20", "Frontline": {"pct": 36.52, "streams": 33617607, "tracks": 62}, "Catalogo": {"pct": 63.48, "streams": 58433801, "tracks": 138}}, {"fecha": "2026-08-27", "Frontline": {"pct": 35.29, "streams": 33257593, "tracks": 58}, "Catalogo": {"pct": 64.71, "streams": 60988687, "tracks": 142}}, {"fecha": "2026-09-03", "Frontline": {"pct": 37.07, "streams": 36309709, "tracks": 61}, "Catalogo": {"pct": 62.93, "streams": 61648700, "tracks": 139}}, {"fecha": "2026-09-10", "Frontline": {"pct": 35.62, "streams": 34646889, "tracks": 58}, "Catalogo": {"pct": 64.38, "streams": 62610009, "tracks": 142}}, {"fecha": "2026-09-17", "Frontline": {"pct": 35.48, "streams": 34668558, "tracks": 58}, "Catalogo": {"pct": 64.52, "streams": 63047334, "tracks": 142}}, {"fecha": "2026-09-24", "Frontline": {"pct": 36.89, "streams": 35329437, "tracks": 59}, "Catalogo": {"pct": 63.11, "streams": 60436974, "tracks": 141}}, {"fecha": "2026-10-01", "Frontline": {"pct": 37.33, "streams": 35198026, "tracks": 62}, "Catalogo": {"pct": 62.67, "streams": 59096646, "tracks": 138}}, {"fecha": "2026-10-08", "Frontline": {"pct": 35.56, "streams": 32681796, "tracks": 59}, "Catalogo": {"pct": 64.44, "streams": 59226167, "tracks": 141}}], "fc_last": {"fecha": "2026-10-08", "Frontline": {"pct": 35.56, "streams": 32681796, "tracks": 59}, "Catalogo": {"pct": 64.44, "streams": 59226167, "tracks": 141}}, "fc_by_madre": {"Anglo": {"Catalogo": {"pct": 71.86, "streams": 1725419, "tracks": 5}, "Frontline": {"pct": 28.14, "streams": 675591, "tracks": 2}}, "K-Pop": {"Frontline": {"pct": 100.0, "streams": 958285, "tracks": 2}}, "Latino": {"Catalogo": {"pct": 57.2, "streams": 27108291, "tracks": 65}, "Frontline": {"pct": 42.8, "streams": 20287826, "tracks": 30}}, "Local": {"Catalogo": {"pct": 73.85, "streams": 30392457, "tracks": 71}, "Frontline": {"pct": 26.15, "streams": 10760094, "tracks": 25}}}};
+
+  const GRUPO_DATA = {"fecha": "2026-10-08", "total_streams": 91907963, "grupos": [{"key": "Sony", "nombre": "Sony Music Group", "streams": 46362956, "pct": 50.44, "tracks": 100, "sellos": 55, "vias": [{"via": "The Orchard", "streams": 29686096, "pct": 32.3, "tracks": 63, "sellos": 26}, {"via": "Sony Music", "streams": 16254178, "pct": 17.69, "tracks": 36, "sellos": 28}, {"via": "Altafonte", "streams": 422682, "pct": 0.46, "tracks": 1, "sellos": 1}]}, {"key": "Universal", "nombre": "Universal Music Group", "streams": 18879514, "pct": 20.54, "tracks": 39, "sellos": 16, "vias": [{"via": "Universal Music", "streams": 11697538, "pct": 12.73, "tracks": 27, "sellos": 11}, {"via": "Virgin Music Group", "streams": 3926788, "pct": 4.27, "tracks": 8, "sellos": 3}, {"via": "Interscope", "streams": 3255188, "pct": 3.54, "tracks": 4, "sellos": 2}]}, {"key": "Warner", "nombre": "Warner Music Group", "streams": 4745666, "pct": 5.16, "tracks": 12, "sellos": 10, "vias": [{"via": "Warner Music", "streams": 4745666, "pct": 5.16, "tracks": 12, "sellos": 10}]}, {"key": "Independientes", "nombre": "Independientes", "streams": 21919827, "pct": 23.85, "tracks": 49, "sellos": 33, "vias": [{"via": "Patricio Rey Discos", "streams": 3632807, "pct": 3.95, "tracks": 9, "sellos": 1}, {"via": "Cinq Music Group", "streams": 2335904, "pct": 2.54, "tracks": 6, "sellos": 4}, {"via": "300 Producciones", "streams": 2293276, "pct": 2.5, "tracks": 5, "sellos": 2}, {"via": "EMPIRE", "streams": 1186689, "pct": 1.29, "tracks": 1, "sellos": 1}, {"via": "Elefante Blanco", "streams": 1103037, "pct": 1.2, "tracks": 2, "sellos": 1}, {"via": "BIGHIT MUSIC (HYBE)", "streams": 958285, "pct": 1.04, "tracks": 2, "sellos": 1}, {"via": "GraceMusic", "streams": 895174, "pct": 0.97, "tracks": 2, "sellos": 1}, {"via": "Planet Distribution", "streams": 879968, "pct": 0.96, "tracks": 1, "sellos": 1}, {"via": "TuneCore", "streams": 691902, "pct": 0.75, "tracks": 2, "sellos": 2}, {"via": "IIP-DDS", "streams": 535057, "pct": 0.58, "tracks": 1, "sellos": 1}, {"via": "Luzbola", "streams": 449053, "pct": 0.49, "tracks": 1, "sellos": 1}, {"via": "Concord", "streams": 391187, "pct": 0.43, "tracks": 1, "sellos": 1}, {"via": "InnerCat Music Group", "streams": 352667, "pct": 0.38, "tracks": 1, "sellos": 1}, {"via": "Street Mob / Rancho Humilde", "streams": 333221, "pct": 0.36, "tracks": 1, "sellos": 1}, {"via": "MOJO", "streams": 320136, "pct": 0.35, "tracks": 1, "sellos": 1}, {"via": "Sello propio / sin distribuidor identificado", "streams": 5561464, "pct": 6.05, "tracks": 13, "sellos": 13}]}], "sin_sello_pct": 0.0, "confianza": {"firme_pct": 72.6, "inferida_pct": 27.4}};
+
+  const YTD = {"n_semanas": 40, "desde": "2026-01-08", "hasta": "2026-10-08", "total_streams": 3976547808, "DATA": {"madre_series": [{"categoria_madre": "Latino", "points": [{"fecha": "2026-10-08", "pct": 45.33, "streams": 1802671199, "tracks": 199, "wow_pp": 6.24}]}, {"categoria_madre": "Local", "points": [{"fecha": "2026-10-08", "pct": 48.5, "streams": 1928569316, "tracks": 314, "wow_pp": -3.72}]}, {"categoria_madre": "Anglo", "points": [{"fecha": "2026-10-08", "pct": 3.7, "streams": 147157686, "tracks": 68, "wow_pp": -1.09}]}, {"categoria_madre": "K-Pop", "points": [{"fecha": "2026-10-08", "pct": 2.47, "streams": 98149607, "tracks": 18, "wow_pp": -1.43}]}], "genero_table": [{"categoria_madre": "Local", "genero": "Rock/Indie", "ms_pct": 23.67, "wow_pp": 1.91, "tracks": 132, "streams": 941346835, "wow_streams_pct": -0.1}, {"categoria_madre": "Local", "genero": "Cumbia", "ms_pct": 10.49, "wow_pp": -2.59, "tracks": 60, "streams": 416943663, "wow_streams_pct": -30.4}, {"categoria_madre": "Local", "genero": "Urbano", "ms_pct": 5.41, "wow_pp": -2.89, "tracks": 47, "streams": 214934543, "wow_streams_pct": -56.8}, {"categoria_madre": "Local", "genero": "Cuarteto", "ms_pct": 3.43, "wow_pp": -0.55, "tracks": 28, "streams": 136277416, "wow_streams_pct": -22.4}, {"categoria_madre": "Local", "genero": "Pop", "ms_pct": 3.15, "wow_pp": -1.56, "tracks": 29, "streams": 125144348, "wow_streams_pct": -53.3}, {"categoria_madre": "Local", "genero": "RKT", "ms_pct": 1.25, "wow_pp": 1.61, "tracks": 12, "streams": 49773614, "wow_streams_pct": 111.3}, {"categoria_madre": "Local", "genero": "Tango/Folklore", "ms_pct": 0.98, "wow_pp": -0.26, "tracks": 2, "streams": 38820010, "wow_streams_pct": -32.1}, {"categoria_madre": "Local", "genero": "DJ", "ms_pct": 0.13, "wow_pp": 0.6, "tracks": 3, "streams": 4978346, "wow_streams_pct": 441.9}, {"categoria_madre": "Local", "genero": "Otro", "ms_pct": 0.01, "wow_pp": -0.01, "tracks": 1, "streams": 350541, "wow_streams_pct": -100.0}, {"categoria_madre": "Latino", "genero": "Urbano", "ms_pct": 41.84, "wow_pp": 5.55, "tracks": 179, "streams": 1663689348, "wow_streams_pct": 4.7}, {"categoria_madre": "Latino", "genero": "Pop", "ms_pct": 2.08, "wow_pp": -0.5, "tracks": 10, "streams": 82532871, "wow_streams_pct": -29.6}, {"categoria_madre": "Latino", "genero": "Corridos Mexicanos", "ms_pct": 1.42, "wow_pp": 1.18, "tracks": 10, "streams": 56448980, "wow_streams_pct": 69.1}, {"categoria_madre": "Anglo", "genero": "Pop", "ms_pct": 2.52, "wow_pp": -0.71, "tracks": 62, "streams": 100244471, "wow_streams_pct": -33.7}, {"categoria_madre": "Anglo", "genero": "Rock/Indie", "ms_pct": 1.18, "wow_pp": -0.37, "tracks": 6, "streams": 46913215, "wow_streams_pct": -36.9}, {"categoria_madre": "K-Pop", "genero": "K-Pop", "ms_pct": 2.47, "wow_pp": -1.43, "tracks": 18, "streams": 98149607, "wow_streams_pct": -60.9}]}, "DONUT_DATA": {"fecha": "2026-10-08", "madre_donut": [{"categoria_madre": "Local", "pct": 48.5, "streams": 1928569316, "tracks": 314}, {"categoria_madre": "Latino", "pct": 45.33, "streams": 1802671199, "tracks": 199}, {"categoria_madre": "Anglo", "pct": 3.7, "streams": 147157686, "tracks": 68}, {"categoria_madre": "K-Pop", "pct": 2.47, "streams": 98149607, "tracks": 18}], "genero_by_madre": {"Latino": [{"genero": "Urbano", "pct_of_total": 41.84, "streams": 1663689348, "tracks": 179, "pct_within_madre": 92.29}, {"genero": "Pop", "pct_of_total": 2.08, "streams": 82532871, "tracks": 10, "pct_within_madre": 4.58}, {"genero": "Corridos Mexicanos", "pct_of_total": 1.42, "streams": 56448980, "tracks": 10, "pct_within_madre": 3.13}], "Local": [{"genero": "Rock/Indie", "pct_of_total": 23.67, "streams": 941346835, "tracks": 132, "pct_within_madre": 48.81}, {"genero": "Cumbia", "pct_of_total": 10.49, "streams": 416943663, "tracks": 60, "pct_within_madre": 21.62}, {"genero": "Urbano", "pct_of_total": 5.41, "streams": 214934543, "tracks": 47, "pct_within_madre": 11.14}, {"genero": "Cuarteto", "pct_of_total": 3.43, "streams": 136277416, "tracks": 28, "pct_within_madre": 7.07}, {"genero": "Pop", "pct_of_total": 3.15, "streams": 125144348, "tracks": 29, "pct_within_madre": 6.49}, {"genero": "RKT", "pct_of_total": 1.25, "streams": 49773614, "tracks": 12, "pct_within_madre": 2.58}, {"genero": "Tango/Folklore", "pct_of_total": 0.98, "streams": 38820010, "tracks": 2, "pct_within_madre": 2.01}, {"genero": "DJ", "pct_of_total": 0.13, "streams": 4978346, "tracks": 3, "pct_within_madre": 0.26}, {"genero": "Otro", "pct_of_total": 0.01, "streams": 350541, "tracks": 1, "pct_within_madre": 0.02}], "Anglo": [{"genero": "Pop", "pct_of_total": 2.52, "streams": 100244471, "tracks": 62, "pct_within_madre": 68.12}, {"genero": "Rock/Indie", "pct_of_total": 1.18, "streams": 46913215, "tracks": 6, "pct_within_madre": 31.88}], "K-Pop": [{"genero": "K-Pop", "pct_of_total": 2.47, "streams": 98149607, "tracks": 18, "pct_within_madre": 100.0}]}}, "LOCAL_TOP10": {"Cuarteto": [{"rank": 1, "track_title": "Cuidado Que Te Supero", "artista_principal": "Q' Lokura", "artistas_colab": "Los Herrera", "streams": 18501331, "posicion": 40}, {"rank": 2, "track_title": "Quédate / Soy Favela / Lo que hay x aqui - En Vivo", "artista_principal": "Q' Lokura", "artistas_colab": "", "streams": 15561620, "posicion": 40}, {"rank": 3, "track_title": "TU MISTERIOSO ALGUIEN (CUARTETO)", "artista_principal": "Luck Ra", "artistas_colab": "Miranda!", "streams": 9058876, "posicion": 12}, {"rank": 4, "track_title": "Puñaladas - En Vivo Plaza De La Música", "artista_principal": "Q' Lokura", "artistas_colab": "Lauta;Amigo de Artistas;Tote", "streams": 8310992, "posicion": 21}, {"rank": 5, "track_title": "LADRON", "artista_principal": "Luck Ra", "artistas_colab": "Karina;RAMKY EN LOS CONTROLES", "streams": 8291442, "posicion": 14}, {"rank": 6, "track_title": "No Se Ve / Chingon", "artista_principal": "DesaKTa2", "artistas_colab": "", "streams": 8270541, "posicion": 20}, {"rank": 7, "track_title": "No Puedo Fingirlo", "artista_principal": "Ulises Bueno", "artistas_colab": "DesaKTa2", "streams": 7046447, "posicion": 19}, {"rank": 8, "track_title": "La Morocha", "artista_principal": "Luck Ra", "artistas_colab": "BM", "streams": 7012153, "posicion": 14}, {"rank": 9, "track_title": "No Podrás - En Vivo", "artista_principal": "Eugenia Quevedo", "artistas_colab": "Angela Leiva;La banda de Carlitos", "streams": 6881598, "posicion": 16}, {"rank": 10, "track_title": "Estaba Aqui Pensando", "artista_principal": "DesaKTa2", "artistas_colab": "Aneley", "streams": 6780977, "posicion": 16}], "Cumbia": [{"rank": 1, "track_title": "UWAIE - versión cumbia", "artista_principal": "Max Carra", "artistas_colab": "", "streams": 42308205, "posicion": 40}, {"rank": 2, "track_title": "Soy Favela", "artista_principal": "La T y La M", "artistas_colab": "", "streams": 40444260, "posicion": 40}, {"rank": 3, "track_title": "Puñaladas", "artista_principal": "Lauta", "artistas_colab": "Amigo de Artistas;Tote", "streams": 37777216, "posicion": 33}, {"rank": 4, "track_title": "Amor de Vago", "artista_principal": "La T y La M", "artistas_colab": "Malandro", "streams": 28718624, "posicion": 40}, {"rank": 5, "track_title": "No Se Va", "artista_principal": "La T y La M", "artistas_colab": "", "streams": 24183699, "posicion": 40}, {"rank": 6, "track_title": "Tu jardín con enanitos", "artista_principal": "Roze Oficial", "artistas_colab": "Max Carra;Valen", "streams": 21241916, "posicion": 15}, {"rank": 7, "track_title": "Tu jardín con enanitos", "artista_principal": "Roze Oficial", "artistas_colab": "Max Carra;Valen;RAMKY EN LOS CONTROLES", "streams": 17866472, "posicion": 25}, {"rank": 8, "track_title": "Loco Enamorado I Varieté #4", "artista_principal": "Tincho & Javi", "artistas_colab": "Max Carra", "streams": 16076658, "posicion": 33}, {"rank": 9, "track_title": "Si No Es Muy Tarde - Versión Cumbia", "artista_principal": "Luciano Pereyra", "artistas_colab": "Ezequiel Y La Clave;Un Poco de Ruido;Pinky SD", "streams": 15733508, "posicion": 37}, {"rank": 10, "track_title": "Corazón Sin Cara - En Vivo", "artista_principal": "Simon Aguirre", "artistas_colab": "", "streams": 12272559, "posicion": 19}], "DJ": [{"rank": 1, "track_title": "PERREO TH 7", "artista_principal": "Dj Plaga", "artistas_colab": "mamiyosoyelth", "streams": 1864718, "posicion": 5}, {"rank": 2, "track_title": "Corazon De Seda", "artista_principal": "Klasico", "artistas_colab": "Ozuna", "streams": 1794918, "posicion": 5}, {"rank": 3, "track_title": "MJ", "artista_principal": "Louis BPM", "artistas_colab": "", "streams": 1318710, "posicion": 4}], "Otro": [{"rank": 1, "track_title": "La Scaloneta Ya Llegó", "artista_principal": "Taro", "artistas_colab": "", "streams": 350541, "posicion": 1}], "Pop": [{"rank": 1, "track_title": "Dos Amantes", "artista_principal": "TINI", "artistas_colab": "Ulises Bueno", "streams": 16451020, "posicion": 29}, {"rank": 2, "track_title": "Tu Misterioso Alguien", "artista_principal": "Miranda!", "artistas_colab": "", "streams": 15057478, "posicion": 37}, {"rank": 3, "track_title": "HASTA QUE ME ENAMORO", "artista_principal": "Maria Becerra", "artistas_colab": "TINI;XROSS", "streams": 13531547, "posicion": 23}, {"rank": 4, "track_title": "TENGO UN FEELING", "artista_principal": "PEPU", "artistas_colab": "Pizzu", "streams": 9240391, "posicion": 13}, {"rank": 5, "track_title": "HACE CALOR", "artista_principal": "Maria Becerra", "artistas_colab": "El Alfa;XROSS", "streams": 8036939, "posicion": 13}, {"rank": 6, "track_title": "RAMEN PARA DOS", "artista_principal": "Maria Becerra", "artistas_colab": "Paulo Londra;XROSS", "streams": 7372958, "posicion": 19}, {"rank": 7, "track_title": "FAVORITA", "artista_principal": "Angela Torres", "artistas_colab": "", "streams": 6740645, "posicion": 16}, {"rank": 8, "track_title": "QUÉ GANAS DE COMERTE", "artista_principal": "Maria Becerra", "artistas_colab": "Jere Klein;Lucky Brown;XROSS", "streams": 6619476, "posicion": 13}, {"rank": 9, "track_title": "blackout 🧊", "artista_principal": "Emilia", "artistas_colab": "TINI;Nicki Nicole", "streams": 6456446, "posicion": 16}, {"rank": 10, "track_title": "MEJOR QUE VOS", "artista_principal": "Lali", "artistas_colab": "Miranda!", "streams": 3838764, "posicion": 10}], "RKT": [{"rank": 1, "track_title": "NO LES DA", "artista_principal": "Callejero Fino", "artistas_colab": "Lea in the Mix", "streams": 16543308, "posicion": 32}, {"rank": 2, "track_title": "PUTERÍ4", "artista_principal": "DobleP", "artistas_colab": "Peipper", "streams": 7930441, "posicion": 20}, {"rank": 3, "track_title": "TIKI TIKI", "artista_principal": "Callejero Fino", "artistas_colab": "Martin Vegas", "streams": 7065682, "posicion": 17}, {"rank": 4, "track_title": "YAKUZA", "artista_principal": "La Joaqui", "artistas_colab": "", "streams": 3386231, "posicion": 5}, {"rank": 5, "track_title": "Te vi", "artista_principal": "La Joaqui", "artistas_colab": "Callejero Fino", "streams": 3167451, "posicion": 7}, {"rank": 6, "track_title": "Te invito a bailar", "artista_principal": "Callejero Fino", "artistas_colab": "La T y La M", "streams": 3096574, "posicion": 8}, {"rank": 7, "track_title": "OA TA TA", "artista_principal": "Callejero Fino", "artistas_colab": "Lea in the Mix", "streams": 2822819, "posicion": 7}, {"rank": 8, "track_title": "2 GATITA$", "artista_principal": "Callejero Fino", "artistas_colab": "Martin Vegas", "streams": 2367009, "posicion": 6}, {"rank": 9, "track_title": "Un Besito Más", "artista_principal": "Salastkbron", "artistas_colab": "Diel Paris", "streams": 1062547, "posicion": 3}, {"rank": 10, "track_title": "PERRA", "artista_principal": "Lezcano Alan", "artistas_colab": "", "streams": 962525, "posicion": 2}], "Rock/Indie": [{"rank": 1, "track_title": "Pensamientos", "artista_principal": "Airbag", "artistas_colab": "", "streams": 33591971, "posicion": 40}, {"rank": 2, "track_title": "Como Eran Las Cosas", "artista_principal": "Babasonicos", "artistas_colab": "", "streams": 28939157, "posicion": 40}, {"rank": 3, "track_title": "Por Mil Noches", "artista_principal": "Airbag", "artistas_colab": "", "streams": 26567358, "posicion": 40}, {"rank": 4, "track_title": "Obsesionario en La Mayor", "artista_principal": "Tan Bionica", "artistas_colab": "", "streams": 24921747, "posicion": 40}, {"rank": 5, "track_title": "A las Nueve", "artista_principal": "No Te Va Gustar", "artistas_colab": "", "streams": 24440400, "posicion": 40}, {"rank": 6, "track_title": "Creo", "artista_principal": "Callejeros", "artistas_colab": "", "streams": 23909421, "posicion": 40}, {"rank": 7, "track_title": "Tan Lejos", "artista_principal": "No Te Va Gustar", "artistas_colab": "Juan Casanova", "streams": 22765229, "posicion": 40}, {"rank": 8, "track_title": "Pasos Al Costado", "artista_principal": "Turf", "artistas_colab": "", "streams": 22563109, "posicion": 40}, {"rank": 9, "track_title": "Un Ángel para Tu Soledad", "artista_principal": "Patricio Rey y sus Redonditos de Ricota", "artistas_colab": "", "streams": 22441357, "posicion": 40}, {"rank": 10, "track_title": "Nunca quise", "artista_principal": "Intoxicados", "artistas_colab": "", "streams": 22284716, "posicion": 40}], "Tango/Folklore": [{"rank": 1, "track_title": "La Noche Sin Tí", "artista_principal": "Los Huayra", "artistas_colab": "", "streams": 28774375, "posicion": 40}, {"rank": 2, "track_title": "Eterno Amor", "artista_principal": "Los Manseros Santiagueños", "artistas_colab": "", "streams": 10045635, "posicion": 27}], "Urbano": [{"rank": 1, "track_title": "Niño", "artista_principal": "Milo j", "artistas_colab": "", "streams": 27265028, "posicion": 40}, {"rank": 2, "track_title": "Con Otra", "artista_principal": "Cazzu", "artistas_colab": "", "streams": 19118992, "posicion": 40}, {"rank": 3, "track_title": "Gil", "artista_principal": "Milo j", "artistas_colab": "Trueno", "streams": 16060603, "posicion": 35}, {"rank": 4, "track_title": "Piel", "artista_principal": "Tiago PZK", "artistas_colab": "Ke Personajes", "streams": 15943405, "posicion": 33}, {"rank": 5, "track_title": "Daddy Yankee: Bzrp Music Sessions, Vol. 0/66", "artista_principal": "Bizarrap", "artistas_colab": "Daddy Yankee", "streams": 14738723, "posicion": 21}, {"rank": 6, "track_title": "Rara Vez", "artista_principal": "Taiu", "artistas_colab": "Milo j", "streams": 14231172, "posicion": 35}, {"rank": 7, "track_title": "Cuentame", "artista_principal": "Felix Record", "artistas_colab": "", "streams": 13781972, "posicion": 28}, {"rank": 8, "track_title": "J Balvin: Bzrp Music Sessions, Vol. 62/66", "artista_principal": "Bizarrap", "artistas_colab": "J Balvin", "streams": 11362574, "posicion": 17}, {"rank": 9, "track_title": "De las 2", "artista_principal": "Trap Capos", "artistas_colab": "Noriel;Bad Bunny;Arcángel", "streams": 11125893, "posicion": 33}, {"rank": 10, "track_title": "M.A.I", "artista_principal": "Milo j", "artistas_colab": "", "streams": 8851693, "posicion": 24}]}, "FC": {"fc_last": {"Frontline": {"pct": 46.21, "streams": 1837697010, "tracks": 299}, "Catalogo": {"pct": 53.79, "streams": 2138850798, "tracks": 324}}, "fc_by_madre": {"Latino": {"Frontline": {"pct": 54.61, "streams": 984488928, "tracks": 95}, "Catalogo": {"pct": 45.39, "streams": 818182271, "tracks": 121}}, "Local": {"Frontline": {"pct": 36.25, "streams": 699067480, "tracks": 143}, "Catalogo": {"pct": 63.75, "streams": 1229501836, "tracks": 177}}, "Anglo": {"Catalogo": {"pct": 61.95, "streams": 91166691, "tracks": 26}, "Frontline": {"pct": 38.05, "streams": 55990995, "tracks": 43}}, "K-Pop": {"Frontline": {"pct": 100.0, "streams": 98149607, "tracks": 18}}}}, "GRUPO_DATA": {"fecha": "2026-10-08", "total_streams": 3976547808, "grupos": [{"key": "Sony", "nombre": "Sony Music Group", "streams": 2193524802, "pct": 55.16, "tracks": 260, "sellos": 88, "vias": [{"via": "The Orchard", "streams": 1343513233, "pct": 33.79, "tracks": 139, "sellos": 36}, {"via": "Sony Music", "streams": 833258405, "pct": 20.95, "tracks": 120, "sellos": 51}, {"via": "Altafonte", "streams": 16753164, "pct": 0.42, "tracks": 1, "sellos": 1}]}, {"key": "Universal", "nombre": "Universal Music Group", "streams": 541665675, "pct": 13.62, "tracks": 102, "sellos": 29, "vias": [{"via": "Universal Music", "streams": 390180733, "pct": 9.81, "tracks": 84, "sellos": 22}, {"via": "Virgin Music Group", "streams": 109849815, "pct": 2.76, "tracks": 12, "sellos": 4}, {"via": "Interscope", "streams": 41635127, "pct": 1.05, "tracks": 6, "sellos": 3}]}, {"key": "Warner", "nombre": "Warner Music Group", "streams": 325180180, "pct": 8.18, "tracks": 50, "sellos": 30, "vias": [{"via": "Warner Music", "streams": 325180180, "pct": 8.18, "tracks": 50, "sellos": 30}]}, {"key": "Independientes", "nombre": "Independientes", "streams": 916177151, "pct": 23.04, "tracks": 187, "sellos": 91, "vias": [{"via": "Patricio Rey Discos", "streams": 153456234, "pct": 3.86, "tracks": 38, "sellos": 1}, {"via": "BIGHIT MUSIC (HYBE)", "streams": 96829297, "pct": 2.44, "tracks": 16, "sellos": 1}, {"via": "300 Producciones", "streams": 72914424, "pct": 1.83, "tracks": 8, "sellos": 2}, {"via": "GraceMusic", "streams": 69710324, "pct": 1.75, "tracks": 5, "sellos": 1}, {"via": "Cinq Music Group", "streams": 64015334, "pct": 1.61, "tracks": 8, "sellos": 5}, {"via": "Elefante Blanco", "streams": 59416165, "pct": 1.49, "tracks": 3, "sellos": 1}, {"via": "IIP-DDS", "streams": 38822726, "pct": 0.98, "tracks": 1, "sellos": 1}, {"via": "EMPIRE", "streams": 28755176, "pct": 0.72, "tracks": 3, "sellos": 1}, {"via": "MOJO", "streams": 26319804, "pct": 0.66, "tracks": 4, "sellos": 2}, {"via": "Luzbola", "streams": 21475899, "pct": 0.54, "tracks": 9, "sellos": 1}, {"via": "TuneCore", "streams": 19809211, "pct": 0.5, "tracks": 2, "sellos": 2}, {"via": "Believe", "streams": 15156548, "pct": 0.38, "tracks": 2, "sellos": 1}, {"via": "Planet Distribution", "streams": 14614747, "pct": 0.37, "tracks": 1, "sellos": 1}, {"via": "Faro Latino Network", "streams": 12929909, "pct": 0.33, "tracks": 3, "sellos": 1}, {"via": "ONErpm", "streams": 9368783, "pct": 0.24, "tracks": 3, "sellos": 1}, {"via": "Street Mob / Rancho Humilde", "streams": 2151173, "pct": 0.05, "tracks": 1, "sellos": 1}, {"via": "Concord", "streams": 1926663, "pct": 0.05, "tracks": 1, "sellos": 1}, {"via": "InnerCat Music Group", "streams": 1099840, "pct": 0.03, "tracks": 1, "sellos": 1}, {"via": "Sello propio / sin distribuidor identificado", "streams": 207404894, "pct": 5.22, "tracks": 78, "sellos": 66}]}], "sin_sello_pct": 0.0, "confianza": {"firme_pct": 75.9, "inferida_pct": 24.1}}};
+  const GRUPO_EVO = {"fechas": ["2026-01-08", "2026-01-15", "2026-01-22", "2026-01-29", "2026-02-05", "2026-02-12", "2026-02-19", "2026-02-26", "2026-03-05", "2026-03-12", "2026-03-19", "2026-03-26", "2026-04-02", "2026-04-09", "2026-04-16", "2026-04-23", "2026-04-30", "2026-05-07", "2026-05-14", "2026-05-21", "2026-05-28", "2026-06-04", "2026-06-11", "2026-06-18", "2026-06-25", "2026-07-02", "2026-07-09", "2026-07-16", "2026-07-23", "2026-07-30", "2026-08-06", "2026-08-13", "2026-08-20", "2026-08-27", "2026-09-03", "2026-09-10", "2026-09-17", "2026-09-24", "2026-10-01", "2026-10-08"], "series": [{"key": "Sony", "nombre": "Sony Music Group", "pts": [55.73, 56.69, 56.69, 57.8, 58.05, 62.61, 65.73, 64.44, 62.39, 63.35, 61.02, 55.51, 56.04, 55.06, 53.51, 53.95, 56.74, 56.81, 55.84, 54.96, 57.59, 57.31, 39.94, 44.71, 48.43, 53.52, 52.45, 51.45, 50.43, 51.56, 54.95, 52.91, 53.33, 51.69, 51.66, 51.96, 53.36, 51.53, 52.12, 50.44]}, {"key": "Universal", "nombre": "Universal Music Group", "pts": [10.86, 10.92, 10.67, 9.57, 9.86, 11.5, 10.32, 11.43, 11.59, 10.58, 12.98, 10.31, 10.6, 11.99, 14.85, 15.64, 13.65, 14.53, 14.4, 13.32, 12.76, 13.19, 8.51, 17.18, 14.81, 13.6, 13.97, 9.94, 13.85, 15.95, 14.83, 16.14, 15.94, 16.12, 19.26, 17.91, 17.68, 20.44, 20.93, 20.54]}, {"key": "Warner", "nombre": "Warner Music Group", "pts": [12.03, 12.23, 11.14, 11.11, 11.33, 9.15, 7.37, 9.1, 10.23, 10.44, 10.23, 8.55, 9.73, 10.61, 9.11, 8.17, 8.36, 8.08, 8.43, 9.15, 8.87, 9.73, 5.46, 5.45, 7.41, 6.43, 5.68, 5.65, 5.71, 5.95, 5.98, 6.12, 5.83, 6.55, 6.33, 6.82, 7.14, 5.02, 4.65, 5.16]}, {"key": "Independientes", "nombre": "Independientes", "pts": [21.38, 20.16, 21.51, 21.52, 20.77, 16.74, 16.58, 15.03, 15.79, 15.63, 15.77, 25.63, 23.63, 22.33, 22.54, 22.24, 21.25, 20.58, 21.32, 22.57, 20.77, 19.77, 46.09, 32.66, 29.35, 26.45, 27.9, 32.96, 30.01, 26.54, 24.24, 24.83, 24.9, 25.65, 22.74, 23.32, 21.82, 23.01, 22.3, 23.85]}]};
+  const LOCAL_EVO = {"fechas": ["2026-01-08", "2026-01-15", "2026-01-22", "2026-01-29", "2026-02-05", "2026-02-12", "2026-02-19", "2026-02-26", "2026-03-05", "2026-03-12", "2026-03-19", "2026-03-26", "2026-04-02", "2026-04-09", "2026-04-16", "2026-04-23", "2026-04-30", "2026-05-07", "2026-05-14", "2026-05-21", "2026-05-28", "2026-06-04", "2026-06-11", "2026-06-18", "2026-06-25", "2026-07-02", "2026-07-09", "2026-07-16", "2026-07-23", "2026-07-30", "2026-08-06", "2026-08-13", "2026-08-20", "2026-08-27", "2026-09-03", "2026-09-10", "2026-09-17", "2026-09-24", "2026-10-01", "2026-10-08"], "series": [{"genero": "Rock/Indie", "pts": [33.2, 32.11, 30.34, 27.68, 30.92, 31.47, 32.38, 37.75, 38.53, 41.22, 42.12, 42.52, 42.46, 50.52, 50.46, 51.5, 49.22, 48.87, 54.58, 54.66, 53.39, 51.5, 78.17, 65.96, 63.68, 61.53, 52.06, 47.82, 59.75, 63.13, 63.96, 63.72, 61.81, 62.76, 58.76, 63.67, 62.83, 59.42, 57.94, 57.12]}, {"genero": "Cumbia", "pts": [24.36, 25.53, 27.43, 28.49, 29.28, 28.34, 29.03, 26.72, 24.84, 24.84, 24.11, 19.65, 19.45, 16.78, 16.26, 19.38, 18.05, 16.88, 15.55, 15.57, 14.57, 18.39, 8.72, 15.06, 17.8, 19.36, 28.88, 36.6, 28.29, 21.47, 18.38, 16.93, 18.24, 20.42, 20.82, 18.15, 16.5, 19.3, 18.95, 17.64]}, {"genero": "Urbano", "pts": [15.35, 13.86, 13.41, 12.35, 12.54, 12.98, 13.01, 13.52, 13.28, 13.48, 12.8, 13.0, 11.8, 11.19, 11.67, 11.42, 19.13, 20.14, 18.66, 17.36, 16.6, 15.55, 5.72, 8.15, 8.07, 9.44, 8.51, 5.5, 3.62, 5.17, 8.48, 8.18, 8.4, 7.13, 6.89, 5.3, 6.21, 3.24, 4.03, 5.64]}, {"genero": "Cuarteto", "pts": [12.03, 12.04, 13.08, 15.43, 12.07, 12.32, 13.12, 10.44, 10.78, 9.14, 8.84, 7.88, 7.67, 5.06, 5.49, 4.89, 4.26, 5.42, 3.17, 3.21, 6.22, 5.91, 1.76, 3.44, 3.72, 3.72, 4.48, 4.21, 3.36, 4.42, 3.03, 3.78, 3.75, 1.98, 3.85, 1.92, 3.04, 5.17, 6.53, 6.43]}, {"genero": "Pop", "pts": [12.66, 12.38, 11.83, 12.08, 11.34, 11.4, 8.74, 8.53, 8.67, 7.67, 7.34, 12.01, 13.44, 10.4, 10.59, 7.23, 5.02, 4.16, 4.07, 4.61, 4.37, 3.95, 3.28, 3.05, 1.79, 1.78, 1.72, 0.8, 0.81, 1.73, 1.93, 1.95, 1.97, 1.96, 1.99, 1.92, 1.85, 2.82, 3.79, 3.55]}, {"genero": "RKT", "pts": [1.31, 2.55, 2.12, 2.15, 2.49, 2.06, 2.07, 2.11, 2.93, 2.64, 2.69, 2.46, 2.59, 3.38, 2.97, 3.04, 1.92, 1.81, 1.07, 1.75, 1.75, 1.13, 0.69, 1.02, 1.15, 1.19, 1.25, 1.83, 1.75, 1.12, 1.26, 2.39, 3.69, 3.74, 4.79, 7.15, 6.88, 7.32, 5.98, 6.39]}, {"genero": "Tango/Folklore", "pts": [0.5, 1.02, 1.26, 1.33, 1.36, 1.43, 1.65, 0.94, 0.97, 1.01, 2.09, 2.48, 2.58, 2.68, 2.57, 2.55, 2.4, 2.73, 2.91, 2.85, 3.11, 2.86, 1.14, 2.52, 2.99, 2.97, 3.1, 2.5, 2.42, 2.96, 2.96, 3.05, 2.12, 2.0, 2.02, 1.89, 1.77, 1.77, 1.71, 1.6]}]};
+  const CALIDAD = {"prov": 4.1, "supuesto": 0.0, "ambiguo": 0.0, "n_prov": 51, "n_supuesto": 0};
+
+  const MADRE_COLOR = { Local: 'var(--s-local)', Latino: 'var(--s-latino)', Anglo: 'var(--s-anglo)', 'K-Pop': 'var(--s-kpop)' };
+  const MADRE_ORDER = ['Local', 'Latino', 'Anglo', 'K-Pop'];
+  const GENERO_COLOR = {
+    'Rock/Indie': '#2a78d6', 'Urbano': '#1baf7a', 'Cumbia': '#eda100', 'Pop': '#008300',
+    'Cuarteto': '#4a3aa7', 'Corridos Mexicanos': '#e34948', 'Tango/Folklore': '#e87ba4',
+    'RKT': '#eb6834', 'K-Pop': '#eb6834',
+  };
+  const GENERO_COLOR_DARK = {
+    'Rock/Indie': '#3987e5', 'Urbano': '#199e70', 'Cumbia': '#c98500', 'Pop': '#008300',
+    'Cuarteto': '#9085e9', 'Corridos Mexicanos': '#e66767', 'Tango/Folklore': '#d55181',
+    'RKT': '#d95926', 'K-Pop': '#d95926',
+  };
+  function generoColor(g) {
+    return document.documentElement.matches('[data-theme="dark"]') || (window.matchMedia('(prefers-color-scheme: dark)').matches && !document.documentElement.matches('[data-theme="light"]'))
+      ? (GENERO_COLOR_DARK[g] || '#898781') : (GENERO_COLOR[g] || '#898781');
+  }
+  const FC_COLOR = { Frontline: 'var(--fc-front)', Catalogo: 'var(--fc-cat)' };
+
+  function fmtPct(n) { return n.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
+  function fmtPP(n) { const s = n > 0 ? '+' : ''; return s + n.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' pp'; }
+  function fmtCompact(n) { return new Intl.NumberFormat('es-AR', { notation: 'compact', maximumFractionDigits: 1 }).format(n); }
+  function fmtStreamsPct(n) { if (n === null) return '—'; const s = n > 0 ? '+' : ''; return s + n.toLocaleString('es-AR', { maximumFractionDigits: 1 }) + '%'; }
+  function fmtDate(d) { const [y,m,day] = d.split('-'); return `${day}/${m}`; }
+
+  // ---------- Donut helper (reused by every % breakdown on the page) ----------
+  function polarToCartesian(cx, cy, r, angleDeg) {
+    const a = (angleDeg - 90) * Math.PI / 180;
+    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+  }
+  function donutArcPath(cx, cy, rOuter, rInner, startAngle, endAngle) {
+    const startOuter = polarToCartesian(cx, cy, rOuter, endAngle);
+    const endOuter = polarToCartesian(cx, cy, rOuter, startAngle);
+    const startInner = polarToCartesian(cx, cy, rInner, endAngle);
+    const endInner = polarToCartesian(cx, cy, rInner, startAngle);
+    const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+    return [
+      `M ${startOuter.x} ${startOuter.y}`,
+      `A ${rOuter} ${rOuter} 0 ${largeArc} 0 ${endOuter.x} ${endOuter.y}`,
+      `L ${endInner.x} ${endInner.y}`,
+      `A ${rInner} ${rInner} 0 ${largeArc} 1 ${startInner.x} ${startInner.y}`,
+      'Z',
+    ].join(' ');
+  }
+  /** slices: [{label, pct, color, sub?}]. opts: {size, thickness, centerLabel, centerSub} */
+  function renderDonut(svgEl, slices, opts) {
+    opts = opts || {};
+    const size = opts.size || 160;
+    const thickness = opts.thickness || 26;
+    const cx = size / 2, cy = size / 2;
+    const rOuter = size / 2 - 2;
+    const rInner = rOuter - thickness;
+    const sorted = [...slices].filter(s => s.pct > 0).sort((a, b) => b.pct - a.pct);
+    let angle = 0;
+    let content = '';
+    sorted.forEach(s => {
+      const sliceAngle = (s.pct / 100) * 360;
+      const titleTag = `<title>${s.label}: ${s.pct.toLocaleString('es-AR', {maximumFractionDigits: 1})}%</title>`;
+      if (s.pct >= 99.95) {
+        content += `<circle cx="${cx}" cy="${cy}" r="${(rOuter + rInner) / 2}" fill="none" stroke="${s.color}" stroke-width="${thickness}">${titleTag}</circle>`;
+      } else {
+        const start = angle, end = angle + sliceAngle;
+        content += `<path d="${donutArcPath(cx, cy, rOuter, rInner, start, end)}" fill="${s.color}" stroke="var(--surface-1)" stroke-width="2">${titleTag}</path>`;
+      }
+      angle += sliceAngle;
+    });
+    if (opts.centerLabel) {
+      content += `<text x="${cx}" y="${cy - (opts.centerSub ? 4 : -5)}" text-anchor="middle" class="donut-center-value">${opts.centerLabel}</text>`;
+    }
+    if (opts.centerSub) {
+      content += `<text x="${cx}" y="${cy + 15}" text-anchor="middle" class="donut-center-sub">${opts.centerSub}</text>`;
+    }
+    svgEl.setAttribute('viewBox', `0 0 ${size} ${size}`);
+    svgEl.innerHTML = content;
+  }
+  function buildDonutLegend(container, slices) {
+    const sorted = [...slices].filter(s => s.pct > 0).sort((a, b) => b.pct - a.pct);
+    container.innerHTML = sorted.map(s => `
+      <div class="donut-legend-item">
+        <span class="dot" style="background:${s.color}"></span>
+        <span class="name">${s.label}${s.sub ? `<span class="meta">${s.sub}</span>` : ''}</span>
+        <span class="pct">${s.pct.toLocaleString('es-AR', {maximumFractionDigits: 1})}%</span>
+      </div>
+    `).join('');
+  }
+
+  // ---------- KPI tiles ----------
+  let MODE = 'sem';
+  function V() {
+    if (MODE === 'ytd') return { DATA: YTD.DATA, DONUT: YTD.DONUT_DATA, TOP10: YTD.LOCAL_TOP10, FC: YTD.FC, GRUPO: YTD.GRUPO_DATA };
+    return { DATA, DONUT: DONUT_DATA, TOP10: LOCAL_TOP10, FC: FC_DATA, GRUPO: GRUPO_DATA };
+  }
+  const fechaUlt = DATA.fechas[DATA.fechas.length - 1], fechaPrev = DATA.fechas[DATA.fechas.length - 2];
+  // etiquetas del eje X: no mas de ~12, siempre la ultima
+  function xLabelIdx(n, max) { const step = Math.ceil(n / (max || 12)); const out = []; for (let i = 0; i < n; i += step) out.push(i); if (out[out.length - 1] !== n - 1) { if (n - 1 - out[out.length - 1] < step * 0.6) out.pop(); out.push(n - 1); } return new Set(out); }
+
+  function buildKPIs() {
+    const row = document.getElementById('kpiRow');
+    const sorted = [...V().DATA.madre_series].sort((a,b) => {
+      const av = a.points[a.points.length-1].pct, bv = b.points[b.points.length-1].pct;
+      return bv - av;
+    });
+    row.innerHTML = sorted.map(s => {
+      const last = s.points[s.points.length - 1];
+      const wow = last.wow_pp;
+      const dirClass = wow > 0 ? 'up' : wow < 0 ? 'down' : 'flat';
+      const arrow = wow > 0 ? '▲' : wow < 0 ? '▼' : '—';
+      return `
+        <div class="kpi">
+          <div class="label"><span class="dot" style="background:${MADRE_COLOR[s.categoria_madre]}"></span>${s.categoria_madre}</div>
+          <div class="value">${fmtPct(last.pct)}</div>
+          <div class="delta ${dirClass}">${arrow} ${fmtPP(Math.abs(wow) === 0 ? 0 : wow)}<span class="vs">${MODE === 'ytd' ? 'últ. sem. vs. prom. 2026' : 'vs. sem. ant.'}</span></div>
+          <div class="meta">${last.tracks} tracks · ${fmtCompact(last.streams)} streams${MODE === 'ytd' ? ' en el año' : ''}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ---------- Line chart ----------
+  function buildChart() {
+    const svg = document.getElementById('lineChart');
+    const W = 1000, H = 340;
+    const M = { top: 20, right: 88, bottom: 34, left: 40 };
+    const plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+
+    const fechas = DATA.fechas;
+    const maxPct = Math.max(...DATA.madre_series.flatMap(s => s.points.map(p => p.pct)));
+    const yMax = Math.ceil((maxPct + 5) / 10) * 10;
+
+    const x = i => M.left + (plotW * i) / (fechas.length - 1);
+    const y = pct => M.top + plotH - (plotH * pct) / yMax;
+
+    let svgContent = '';
+
+    // gridlines + y-axis labels
+    const ySteps = 5;
+    for (let i = 0; i <= ySteps; i++) {
+      const val = (yMax / ySteps) * i;
+      const yy = y(val);
+      svgContent += `<line class="gridline" x1="${M.left}" y1="${yy}" x2="${W - M.right}" y2="${yy}" />`;
+      svgContent += `<text class="axis-text" x="${M.left - 10}" y="${yy + 4}" text-anchor="end">${Math.round(val)}%</text>`;
+    }
+
+    // baseline
+    svgContent += `<line x1="${M.left}" y1="${y(0)}" x2="${W - M.right}" y2="${y(0)}" stroke="var(--baseline)" stroke-width="1" />`;
+
+    // x-axis labels
+    const lblIdx = xLabelIdx(fechas.length, 14);
+    fechas.forEach((f, i) => {
+      if (lblIdx.has(i)) svgContent += `<text class="axis-text" x="${x(i)}" y="${H - M.bottom + 20}" text-anchor="middle">${fmtDate(f)}</text>`;
+    });
+
+    // lines + end dots
+    const orderedSeries = MADRE_ORDER.map(m => DATA.madre_series.find(s => s.categoria_madre === m)).filter(Boolean);
+    orderedSeries.forEach(s => {
+      const color = MADRE_COLOR[s.categoria_madre];
+      const pathD = s.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(p.pct)}`).join(' ');
+      svgContent += `<path class="series-line" d="${pathD}" stroke="${color}" />`;
+      s.points.forEach((p, i) => {
+        const big = i === s.points.length - 1 || s.points.length <= 12;
+        svgContent += `<circle class="end-dot" cx="${x(i)}" cy="${y(p.pct)}" r="${big ? 4 : 2}" fill="${color}" />`;
+      });
+    });
+
+    // end labels — collision-aware: series whose end points sit within
+    // MIN_GAP px of each other get spread out and connected back to their
+    // real dot with a thin leader line, instead of overlapping text.
+    const MIN_GAP = 15;
+    const labelTargets = orderedSeries
+      .map(s => {
+        const lastP = s.points[s.points.length - 1];
+        return { madre: s.categoria_madre, color: MADRE_COLOR[s.categoria_madre], dotY: y(lastP.pct) };
+      })
+      .sort((a, b) => a.dotY - b.dotY);
+    labelTargets.forEach((t, i) => {
+      t.labelY = i === 0 ? t.dotY : Math.max(t.dotY, labelTargets[i - 1].labelY + MIN_GAP);
+    });
+    const labelX = x(fechas.length - 1) + 12;
+    labelTargets.forEach(t => {
+      if (Math.abs(t.labelY - t.dotY) > 1) {
+        svgContent += `<path d="M ${labelX - 6} ${t.dotY} L ${labelX - 1} ${t.labelY}" stroke="${t.color}" stroke-width="1" fill="none" opacity="0.6" />`;
+      }
+      svgContent += `<text class="end-label" x="${labelX}" y="${t.labelY + 4}" fill="${t.color}">${t.madre}</text>`;
+    });
+
+    // crosshair + hover dots (built once, toggled via JS)
+    svgContent += `<line class="crosshair-line" id="crosshair" x1="0" y1="${M.top}" x2="0" y2="${M.top + plotH}" />`;
+    orderedSeries.forEach(s => {
+      svgContent += `<g class="hover-dot" id="hover-${s.categoria_madre.replace(/[^a-zA-Z]/g,'')}"><circle r="5" fill="${MADRE_COLOR[s.categoria_madre]}" /></g>`;
+    });
+
+    // hit areas per week (for hover)
+    fechas.forEach((f, i) => {
+      const bandW = plotW / fechas.length;
+      const bandX = M.left + bandW * i;
+      svgContent += `<rect class="hit-area" data-i="${i}" x="${bandX}" y="${M.top}" width="${bandW}" height="${plotH}" />`;
+    });
+
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = svgContent;
+
+    // wire up hover
+    const tooltip = document.getElementById('tooltip');
+    const crosshair = document.getElementById('crosshair');
+    const hitAreas = svg.querySelectorAll('.hit-area');
+
+    hitAreas.forEach(rect => {
+      rect.addEventListener('mouseenter', showHover);
+      rect.addEventListener('mousemove', showHover);
+      rect.addEventListener('mouseleave', hideHover);
+    });
+
+    function showHover(e) {
+      const i = parseInt(rect_i(e));
+      const xi = x(i);
+      crosshair.setAttribute('x1', xi);
+      crosshair.setAttribute('x2', xi);
+      crosshair.style.opacity = 1;
+
+      let rows = '';
+      orderedSeries.forEach(s => {
+        const p = s.points[i];
+        const dot = svg.querySelector(`#hover-${s.categoria_madre.replace(/[^a-zA-Z]/g,'')}`);
+        dot.querySelector('circle').setAttribute('cx', xi);
+        dot.querySelector('circle').setAttribute('cy', y(p.pct));
+        dot.style.opacity = 1;
+        rows += `<div class="t-row"><span class="t-name"><span class="t-dot" style="background:${MADRE_COLOR[s.categoria_madre]}"></span>${s.categoria_madre}</span><span class="t-val">${fmtPct(p.pct)}</span></div>`;
+      });
+      tooltip.innerHTML = `<div class="t-date">${fechas[i]}</div>${rows}`;
+      tooltip.style.opacity = 1;
+
+      const svgRect = svg.getBoundingClientRect();
+      const scale = svgRect.width / W;
+      const tX = svgRect.left - svg.closest('div[style*="relative"]').getBoundingClientRect().left + xi * scale + 14;
+      const tY = (y(0) * scale) - 140;
+      tooltip.style.left = Math.min(tX, svgRect.width - 170) + 'px';
+      tooltip.style.top = Math.max(tY, 0) + 'px';
+    }
+    function hideHover() {
+      crosshair.style.opacity = 0;
+      tooltip.style.opacity = 0;
+      orderedSeries.forEach(s => {
+        svg.querySelector(`#hover-${s.categoria_madre.replace(/[^a-zA-Z]/g,'')}`).style.opacity = 0;
+      });
+    }
+    function rect_i(e) { return e.target.getAttribute('data-i'); }
+  }
+
+  function buildLegend() {
+    const legend = document.getElementById('legend');
+    legend.innerHTML = MADRE_ORDER.map(m => `
+      <div class="legend-item"><span class="legend-swatch" style="background:${MADRE_COLOR[m]}"></span>${m}</div>
+    `).join('');
+  }
+
+  // ---------- Table ----------
+  function buildTable() {
+    const tbody = document.getElementById('tableBody');
+    let lastMadre = null;
+    document.getElementById('thWow').textContent = MODE === 'ytd' ? 'Últ. sem. vs. 2026 (pp)' : 'WoW (pp)';
+    document.getElementById('thStreams').textContent = MODE === 'ytd' ? 'Streams 2026' : 'Streams TW';
+    document.getElementById('thWowS').textContent = MODE === 'ytd' ? 'Últ. sem. vs. prom. (streams)' : 'WoW streams';
+    document.getElementById('tableSub').textContent = MODE === 'ytd'
+      ? 'Acumulado 2026, agrupado por categoría madre — los deltas comparan la última semana contra el promedio semanal del año'
+      : 'Semana actual, agrupado por categoría madre — el círculo muestra la composición de géneros dentro de cada categoría';
+    tbody.innerHTML = V().DATA.genero_table.map(row => {
+      const showMadre = row.categoria_madre !== lastMadre;
+      lastMadre = row.categoria_madre;
+      const dirClass = row.wow_pp > 0 ? 'up' : row.wow_pp < 0 ? 'down' : 'flat';
+      const arrow = row.wow_pp > 0 ? '▲' : row.wow_pp < 0 ? '▼' : '—';
+      const streamsDir = row.wow_streams_pct === null ? 'flat' : row.wow_streams_pct > 0 ? 'up' : row.wow_streams_pct < 0 ? 'down' : 'flat';
+      return `
+        <tr>
+          <td>${showMadre ? `<span class="madre-cell"><span class="dot" style="background:${MADRE_COLOR[row.categoria_madre]}"></span>${row.categoria_madre}</span>` : ''}</td>
+          <td class="genero-name">${row.genero}</td>
+          <td>${fmtPct(row.ms_pct)}</td>
+          <td><span class="delta-chip ${dirClass}">${arrow} ${fmtPP(row.wow_pp)}</span></td>
+          <td>${row.tracks}</td>
+          <td>${fmtCompact(row.streams)}</td>
+          <td><span class="delta-chip ${streamsDir}">${fmtStreamsPct(row.wow_streams_pct)}</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ---------- Donut: categoria madre (Esta semana) ----------
+  function buildMadreDonut() {
+    const slices = V().DONUT.madre_donut.map(m => ({
+      label: m.categoria_madre, pct: m.pct, color: MADRE_COLOR[m.categoria_madre],
+      sub: `${m.tracks} tracks`,
+    }));
+    renderDonut(document.getElementById('madreDonut'), slices, { size: 160, thickness: 26, centerLabel: V().DONUT.madre_donut.length + '', centerSub: 'categorías' });
+    buildDonutLegend(document.getElementById('madreDonutLegend'), slices);
+  }
+
+  // ---------- Frontline vs Catálogo ----------
+  function buildFcDonut() {
+    const last = V().FC.fc_last;
+    const slices = [
+      { label: 'Frontline', pct: last.Frontline.pct, color: 'var(--fc-front)', sub: `${last.Frontline.tracks} tracks · ${fmtCompact(last.Frontline.streams)} streams` },
+      { label: 'Catálogo', pct: last.Catalogo.pct, color: 'var(--fc-cat)', sub: `${last.Catalogo.tracks} tracks · ${fmtCompact(last.Catalogo.streams)} streams` },
+    ];
+    renderDonut(document.getElementById('fcDonut'), slices, { size: 160, thickness: 26, centerLabel: fmtPct(last.Frontline.pct), centerSub: 'frontline' });
+    buildDonutLegend(document.getElementById('fcDonutLegend'), slices);
+
+    const evo = FC_DATA.fc_evolution;
+    const first = evo[0], lastW = evo[evo.length - 1];
+    const delta = Math.round((lastW.Frontline.pct - first.Frontline.pct) * 10) / 10;
+    const dir = delta > 0 ? 'creciendo' : delta < 0 ? 'cayendo' : 'estable';
+    document.getElementById('fcTrendNote').innerHTML =
+      `En lo que va de 2026 la porción Frontline está <strong>${dir}</strong> (${fmtDate(first.fecha)}: ${fmtPct(first.Frontline.pct)} → ${fmtDate(lastW.fecha)}: ${fmtPct(lastW.Frontline.pct)}), es decir el consumo está ${delta < 0 ? 'corriéndose hacia' : 'alejándose de'} catálogo viejo. Parte de esa caída es mecánica: el corte de 18 meses se mueve con cada semana y los lanzamientos de principios de 2025 van pasando a Catálogo.`;
+  }
+
+  function buildFcLineChart() {
+    const svg = document.getElementById('fcLineChart');
+    const W = 560, H = 260;
+    const M = { top: 16, right: 70, bottom: 30, left: 34 };
+    const plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+    const fechas = FC_DATA.fc_evolution.map(d => d.fecha);
+    const x = i => M.left + (plotW * i) / (fechas.length - 1);
+    const y = pct => M.top + plotH - (plotH * pct) / 100;
+
+    let content = '';
+    [0, 25, 50, 75, 100].forEach(v => {
+      const yy = y(v);
+      content += `<line class="gridline" x1="${M.left}" y1="${yy}" x2="${W - M.right}" y2="${yy}" />`;
+      content += `<text class="axis-text" x="${M.left - 8}" y="${yy + 4}" text-anchor="end">${v}%</text>`;
+    });
+    const lblIdx = xLabelIdx(fechas.length, 8);
+    fechas.forEach((f, i) => {
+      if (lblIdx.has(i)) content += `<text class="axis-text" x="${x(i)}" y="${H - M.bottom + 18}" text-anchor="middle">${fmtDate(f)}</text>`;
+    });
+
+    ['Frontline', 'Catalogo'].forEach(key => {
+      const color = FC_COLOR[key];
+      const pts = FC_DATA.fc_evolution.map(d => d[key].pct);
+      const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(p)}`).join(' ');
+      content += `<path class="series-line" d="${pathD}" stroke="${color}" />`;
+      pts.forEach((p, i) => {
+        content += `<circle class="end-dot" cx="${x(i)}" cy="${y(p)}" r="${i === pts.length - 1 || pts.length <= 12 ? 4 : 2}" fill="${color}"><title>${key} — ${fmtDate(fechas[i])}: ${fmtPct(p)}</title></circle>`;
+      });
+      const lastP = pts[pts.length - 1];
+      const label = key === 'Catalogo' ? 'Catálogo' : key;
+      content += `<text class="end-label" x="${x(fechas.length - 1) + 12}" y="${y(lastP) + 4}" fill="${color}">${label}</text>`;
+    });
+
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = content;
+
+    document.getElementById('fcLegend').innerHTML = ['Frontline', 'Catalogo'].map(k => `
+      <div class="legend-item"><span class="legend-swatch" style="background:${FC_COLOR[k]}"></span>${k === 'Catalogo' ? 'Catálogo' : k}</div>
+    `).join('');
+  }
+
+  function buildFcMadreGrid() {
+    const grid = document.getElementById('fcMadreGrid');
+    grid.innerHTML = MADRE_ORDER.map(madre => {
+      const data = V().FC.fc_by_madre[madre];
+      if (!data) return '';
+      const slices = [
+        { label: 'Frontline', pct: (data.Frontline && data.Frontline.pct) || 0, color: 'var(--fc-front)' },
+        { label: 'Catálogo', pct: (data.Catalogo && data.Catalogo.pct) || 0, color: 'var(--fc-cat)' },
+      ];
+      const id = `fcMini${madre.replace(/[^a-zA-Z]/g, '')}`;
+      return `
+        <div class="mini-donut-card">
+          <div class="mini-title"><span class="dot" style="background:${MADRE_COLOR[madre]}"></span>${madre}</div>
+          <svg id="${id}" width="92" height="92"></svg>
+          <div class="mini-donut-legend">
+            <span><span class="swatch" style="background:var(--fc-front)"></span>${fmtPct(slices[0].pct)} front</span>
+            <span><span class="swatch" style="background:var(--fc-cat)"></span>${fmtPct(slices[1].pct)} cat</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+    MADRE_ORDER.forEach(madre => {
+      const data = V().FC.fc_by_madre[madre];
+      if (!data) return;
+      const slices = [
+        { label: 'Frontline', pct: (data.Frontline && data.Frontline.pct) || 0, color: 'var(--fc-front)' },
+        { label: 'Catálogo', pct: (data.Catalogo && data.Catalogo.pct) || 0, color: 'var(--fc-cat)' },
+      ];
+      const id = `fcMini${madre.replace(/[^a-zA-Z]/g, '')}`;
+      renderDonut(document.getElementById(id), slices, { size: 92, thickness: 16 });
+    });
+  }
+
+  // ---------- Género breakdown strip (dentro de la tabla de detalle) ----------
+  function buildGeneroStrip() {
+    const strip = document.getElementById('generoStrip');
+    const madresConDatos = MADRE_ORDER.filter(m => (V().DONUT.genero_by_madre[m] || []).length > 1);
+    strip.innerHTML = madresConDatos.map(madre => {
+      const items = V().DONUT.genero_by_madre[madre];
+      const id = `generoStripDonut${madre.replace(/[^a-zA-Z]/g, '')}`;
+      return `
+        <div class="mini-donut-card" style="align-items:stretch; text-align:left;">
+          <div class="mini-title" style="justify-content:center;"><span class="dot" style="background:${MADRE_COLOR[madre]}"></span>${madre} por género</div>
+          <div style="display:flex; align-items:center; gap:10px; justify-content:center;">
+            <svg id="${id}" width="80" height="80"></svg>
+            <div class="donut-legend">
+              ${items.slice(0, 4).map(it => `
+                <div class="donut-legend-item">
+                  <span class="dot" style="background:${generoColor(it.genero)}"></span>
+                  <span class="name">${it.genero}</span>
+                  <span class="pct">${fmtPct(it.pct_within_madre)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    madresConDatos.forEach(madre => {
+      const items = V().DONUT.genero_by_madre[madre];
+      const id = `generoStripDonut${madre.replace(/[^a-zA-Z]/g, '')}`;
+      const slices = items.map(it => ({ label: it.genero, pct: it.pct_within_madre, color: generoColor(it.genero) }));
+      renderDonut(document.getElementById(id), slices, { size: 80, thickness: 14 });
+    });
+  }
+
+  // ---------- Local — Top 10 por género ----------
+  function buildLocalTop10() {
+    const grid = document.getElementById('top10Grid');
+    const localGeneros = V().DONUT.genero_by_madre['Local'] || [];
+    document.getElementById('top10Sub').textContent = MODE === 'ytd'
+      ? 'Los tracks argentinos con más streams acumulados en 2026, género por género (la columna Sem. cuenta en cuántas semanas estuvieron en el Top 200). El círculo muestra qué proporción del total Local representa ese género.'
+      : 'Los tracks argentinos con más streams esta semana, género por género. El círculo muestra qué proporción del total Local representa ese género.';
+    grid.innerHTML = localGeneros.map(g => {
+      const tracks = V().TOP10[g.genero] || [];
+      const id = `top10Donut${g.genero.replace(/[^a-zA-Z]/g, '')}`;
+      const rows = tracks.map(t => `
+        <tr>
+          <td class="rank">${t.rank}</td>
+          <td class="title-cell">
+            <span class="t">${t.track_title}</span>
+            <span class="a">${t.artista_principal}${t.artistas_colab ? ' · ' + t.artistas_colab : ''}</span>
+          </td>
+          <td class="chart-pos">${MODE === 'ytd' ? t.posicion + ' sem.' : '#' + t.posicion}</td>
+          <td class="streams">${fmtCompact(t.streams)}</td>
+        </tr>
+      `).join('');
+      return `
+        <div class="top10-card">
+          <div class="top10-head">
+            <svg id="${id}" width="56" height="56"></svg>
+            <div class="top10-head-text">
+              <h3>${g.genero}</h3>
+              <div class="meta">${fmtPct(g.pct_within_madre)} de Local · ${g.tracks} tracks en el chart · ${fmtCompact(g.streams)} streams${MODE === 'ytd' ? ' en 2026' : ''}</div>
+            </div>
+          </div>
+          <table class="top10-table">
+            <thead><tr><th></th><th>Track</th><th>${MODE === 'ytd' ? 'Sem.' : 'Chart'}</th><th>Streams</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }).join('');
+    localGeneros.forEach(g => {
+      const id = `top10Donut${g.genero.replace(/[^a-zA-Z]/g, '')}`;
+      const slices = localGeneros.map(x => ({ label: x.genero, pct: x.pct_within_madre, color: x.genero === g.genero ? generoColor(x.genero) : 'var(--fc-cat)' }));
+      renderDonut(document.getElementById(id), slices, { size: 56, thickness: 10 });
+    });
+  }
+
+  // ---------- Market share por grupo discografico ----------
+  const GRUPO_COLOR = { Sony: 'var(--g-sony)', Universal: 'var(--g-universal)', Warner: 'var(--g-warner)', Independientes: 'var(--g-indep)', 'Sin mapear': 'var(--text-muted)' };
+  function buildGrupos() {
+    const G = V().GRUPO;
+    document.getElementById('grupoSub').textContent = MODE === 'ytd'
+      ? 'Quién distribuye lo que se escuchó en el Top 200 en lo que va de 2026 (suma de las ' + YTD.n_semanas + ' semanas). Tocá cada grupo para ver por qué vía distribuye.'
+      : 'Quién distribuye lo que se escucha en el Top 200 de la semana. Tocá cada grupo para ver por qué vía distribuye.';
+    const slices = G.grupos.map(g => ({ label: g.nombre, pct: g.pct, color: GRUPO_COLOR[g.key], sub: `${g.tracks} tracks · ${fmtCompact(g.streams)} streams` }));
+    renderDonut(document.getElementById('grupoDonut'), slices, { size: 200, thickness: 34, centerLabel: MODE === 'ytd' ? '2026' : 'Top 200', centerSub: 'por grupo' });
+    buildDonutLegend(document.getElementById('grupoDonutLegend'), slices);
+    document.getElementById('grupoList').innerHTML = G.grupos.map(g => {
+      const maxPct = Math.max(...g.vias.map(v => v.pct), 0.01);
+      const rows = g.vias.map(v => `
+        <tr class="${v.via.startsWith('Sello propio') ? 'via-rest' : ''}">
+          <td>${v.via}<span class="via-bar" style="width:${Math.max(v.pct / maxPct * 100, 2)}%; background:${GRUPO_COLOR[g.key]}; opacity:0.55"></span></td>
+          <td>${fmtPct(v.pct)}</td>
+          <td>${fmtPct(g.pct ? v.pct / g.pct * 100 : 0)}</td>
+          <td>${v.tracks}</td>
+          <td>${v.sellos}</td>
+          <td>${fmtCompact(v.streams)}</td>
+        </tr>`).join('');
+      return `
+        <details class="grupo">
+          <summary>
+            <span class="chev"></span>
+            <span class="g-dot" style="background:${GRUPO_COLOR[g.key]}"></span>
+            <span class="g-name">${g.nombre}<span class="g-meta">${g.tracks} tracks · ${g.sellos} sellos · ${fmtCompact(g.streams)} streams</span></span>
+            <span class="g-pct">${fmtPct(g.pct)}</span>
+          </summary>
+          <div class="vias-wrap">
+            <table class="vias-table">
+              <thead><tr><th>Vía de distribución</th><th>MS % total</th><th>% del grupo</th><th>Tracks</th><th>Sellos</th><th>${MODE === 'ytd' ? 'Streams 2026' : 'Streams TW'}</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </details>`;
+    }).join('');
+    document.getElementById('grupoNote').innerHTML =
+      `Metodología: cada track se asigna a un grupo según el texto de copyright (℗) del álbum en Spotify (sello crudo, no el campo oficial <code>label</code>, que viene vacío), más reglas confirmadas por el equipo y búsquedas web. ` +
+      `Sony incluye The Orchard y Altafonte; Warner incluye ADA; Universal incluye Interscope, Virgin y EMI; <strong>Independientes</strong> es todo lo que no cae en esos tres. ` +
+      `<strong>${G.confianza.firme_pct.toLocaleString('es-AR', {maximumFractionDigits: 1})}%</strong> de los streams tiene clasificación firme (regla del equipo o texto explícito del sello); ` +
+      `el <strong>${G.confianza.inferida_pct.toLocaleString('es-AR', {maximumFractionDigits: 1})}%</strong> restante es inferido y está marcado como “Revisar” en <code>mapeo_sellos_market_share.xlsx</code>.`;
+  }
+
+  // ---------- Evolucion por grupo discografico ----------
+  function buildGrupoLine() {
+    const svg = document.getElementById('grupoLineChart');
+    const W = 1000, H = 300, M = { top: 16, right: 110, bottom: 30, left: 40 };
+    const plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+    const fechas = GRUPO_EVO.fechas;
+    const maxPct = Math.max(...GRUPO_EVO.series.flatMap(s => s.pts));
+    const yMax = Math.ceil((maxPct + 3) / 10) * 10;
+    const x = i => M.left + (plotW * i) / (fechas.length - 1);
+    const y = v => M.top + plotH - (plotH * v) / yMax;
+    let c = '';
+    for (let i = 0; i <= 5; i++) {
+      const v = (yMax / 5) * i;
+      c += `<line class="gridline" x1="${M.left}" y1="${y(v)}" x2="${W - M.right}" y2="${y(v)}" /><text class="axis-text" x="${M.left - 10}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}%</text>`;
+    }
+    const lblIdx = xLabelIdx(fechas.length, 14);
+    fechas.forEach((f, i) => { if (lblIdx.has(i)) c += `<text class="axis-text" x="${x(i)}" y="${H - M.bottom + 20}" text-anchor="middle">${fmtDate(f)}</text>`; });
+    const targets = [];
+    GRUPO_EVO.series.forEach(s => {
+      const color = GRUPO_COLOR[s.key];
+      c += `<path class="series-line" d="${s.pts.map((v, i) => `${i ? 'L' : 'M'} ${x(i)} ${y(v)}`).join(' ')}" stroke="${color}" />`;
+      s.pts.forEach((v, i) => { c += `<circle class="end-dot" cx="${x(i)}" cy="${y(v)}" r="${i === s.pts.length - 1 ? 4 : 2.5}" fill="${color}"><title>${s.nombre} — ${fmtDate(fechas[i])}: ${fmtPct(v)}</title></circle>`; });
+      targets.push({ nombre: s.nombre.replace(' Music Group', ''), color, dotY: y(s.pts[s.pts.length - 1]) });
+    });
+    targets.sort((a, b) => a.dotY - b.dotY).forEach((t, i, arr) => { t.labelY = i === 0 ? t.dotY : Math.max(t.dotY, arr[i - 1].labelY + 15); });
+    targets.forEach(t => { c += `<text class="end-label" x="${x(fechas.length - 1) + 12}" y="${t.labelY + 4}" fill="${t.color}">${t.nombre}</text>`; });
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = c;
+    document.getElementById('grupoLegend').innerHTML = GRUPO_EVO.series.map(s => `<div class="legend-item"><span class="legend-swatch" style="background:${GRUPO_COLOR[s.key]}"></span>${s.nombre}</div>`).join('');
+  }
+
+  // ---------- Local: evolucion de cada genero dentro de Local ----------
+  function buildLocalEvo() {
+    const svg = document.getElementById('localEvoChart');
+    const W = 1000, H = 340, M = { top: 16, right: 120, bottom: 30, left: 40 };
+    const plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+    const fechas = LOCAL_EVO.fechas;
+    const maxPct = Math.max(...LOCAL_EVO.series.flatMap(s => s.pts));
+    const yMax = Math.ceil((maxPct + 3) / 10) * 10;
+    const x = i => M.left + (plotW * i) / (fechas.length - 1);
+    const y = v => M.top + plotH - (plotH * v) / yMax;
+    let c = '';
+    for (let i = 0; i <= 5; i++) {
+      const v = (yMax / 5) * i;
+      c += `<line class="gridline" x1="${M.left}" y1="${y(v)}" x2="${W - M.right}" y2="${y(v)}" /><text class="axis-text" x="${M.left - 10}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}%</text>`;
+    }
+    const lblIdx = xLabelIdx(fechas.length, 14);
+    fechas.forEach((f, i) => { if (lblIdx.has(i)) c += `<text class="axis-text" x="${x(i)}" y="${H - M.bottom + 20}" text-anchor="middle">${fmtDate(f)}</text>`; });
+    const targets = [];
+    LOCAL_EVO.series.forEach(s => {
+      const color = generoColor(s.genero);
+      c += `<path class="series-line" d="${s.pts.map((v, i) => `${i ? 'L' : 'M'} ${x(i)} ${y(v)}`).join(' ')}" stroke="${color}" />`;
+      s.pts.forEach((v, i) => { c += `<circle class="end-dot" cx="${x(i)}" cy="${y(v)}" r="${i === s.pts.length - 1 ? 4 : 2.5}" fill="${color}"><title>${s.genero} — ${fmtDate(fechas[i])}: ${fmtPct(v)} de Local</title></circle>`; });
+      targets.push({ nombre: s.genero, color, dotY: y(s.pts[s.pts.length - 1]) });
+    });
+    targets.sort((a, b) => a.dotY - b.dotY).forEach((t, i, arr) => { t.labelY = i === 0 ? t.dotY : Math.max(t.dotY, arr[i - 1].labelY + 14); });
+    for (let i = targets.length - 1; i >= 0; i--) targets[i].labelY = Math.min(targets[i].labelY, i === targets.length - 1 ? y(0) : targets[i + 1].labelY - 14);
+    targets.forEach(t => { c += `<text class="end-label" x="${x(fechas.length - 1) + 12}" y="${t.labelY + 4}" fill="${t.color}">${t.nombre}</text>`; });
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = c;
+    document.getElementById('localEvoLegend').innerHTML = LOCAL_EVO.series.map(s => `<div class="legend-item"><span class="legend-swatch" style="background:${generoColor(s.genero)}"></span>${s.genero}</div>`).join('');
+  }
+
+  function buildCaveat() {
+    const c = CALIDAD, ssY = YTD.GRUPO_DATA.sin_sello_pct, firme = YTD.GRUPO_DATA.confianza.firme_pct;
+    const f = n => n.toLocaleString('es-AR', { maximumFractionDigits: 1 });
+    document.getElementById('caveat').innerHTML =
+      `Versión en revisión: el Top 200 de las ${DATA.fechas.length} semanas desde la semana 1 de 2026 (08/01) está completo (posiciones 1-200 en cada semana). ` +
+      `Género y categoría de los artistas fuera de la taxonomía original: ${c.n_prov} artistas validados por el equipo` +
+      (c.n_supuesto ? `, ${c.n_supuesto} todavía supuestos (${f(c.supuesto)}% de los streams)` : '') + `; los artistas con más de un género usan un género por defecto y, si el título dice “cuarteto” o “cumbia”, se asigna ese. ` +
+      `El reparto por grupo discográfico sale del texto de copyright de Spotify, reglas del equipo y búsquedas web: ${f(firme)}% de los streams del año tiene clasificación firme y el resto es inferido` +
+      (ssY > 0 ? `; ${f(ssY)}% todavía no tiene sello (límite de la API de Spotify) y aparece como “Sin dato de sello”` : '') + '.';
+  }
+
+  function renderAll() {
+    buildKPIs();
+    buildTable();
+    buildMadreDonut();
+    buildFcDonut();
+    buildFcMadreGrid();
+    buildGeneroStrip();
+    buildLocalTop10();
+    buildGrupos();
+    const ytd = MODE === 'ytd';
+    document.getElementById('kpiTitle').textContent = ytd ? `Acumulado 2026 (${YTD.n_semanas} semanas)` : 'Esta semana';
+    document.getElementById('kpiSub').textContent = ytd
+      ? `Market share de ${fmtDate(YTD.desde)} a ${fmtDate(YTD.hasta)} y diferencia de la última semana (${fechaUlt}) contra ese promedio`
+      : `Market share y variación vs. semana anterior (${fechaPrev})`;
+    document.getElementById('modeSem').classList.toggle('active', !ytd);
+    document.getElementById('modeYtd').classList.toggle('active', ytd);
+  }
+
+  buildLegend();
+  buildChart();
+  buildFcLineChart();
+  buildGrupoLine();
+  buildLocalEvo();
+  buildCaveat();
+  renderAll();
+  document.getElementById('modeBar').addEventListener('click', e => {
+    const b = e.target.closest('.mode-btn'); if (!b || b.dataset.mode === MODE) return;
+    MODE = b.dataset.mode; renderAll();
+  });
+  window.addEventListener('resize', buildChart);
+</script>
